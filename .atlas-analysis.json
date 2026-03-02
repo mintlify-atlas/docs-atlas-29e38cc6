@@ -1,0 +1,164 @@
+{
+  "projectType": "framework",
+  "projectName": "Hummingbot",
+  "projectDescription": "Open-source framework for building and deploying automated cryptocurrency trading bots",
+  "theme": "aspen",
+  "primaryColor": "#00D4AA",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart",
+              "architecture"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/strategies",
+              "concepts/connectors",
+              "concepts/exchange-types",
+              "concepts/order-types",
+              "concepts/market-data"
+            ]
+          },
+          {
+            "group": "Built-in Strategies",
+            "pages": [
+              "strategies/overview",
+              "strategies/pure-market-making",
+              "strategies/cross-exchange-market-making",
+              "strategies/amm-arbitrage",
+              "strategies/avellaneda-market-making",
+              "strategies/perpetual-market-making",
+              "strategies/spot-perpetual-arbitrage"
+            ]
+          },
+          {
+            "group": "Exchange Connectors",
+            "pages": [
+              "connectors/overview",
+              "connectors/clob-cex-spot",
+              "connectors/clob-cex-perpetual",
+              "connectors/clob-dex-spot",
+              "connectors/clob-dex-perpetual",
+              "connectors/amm-dex"
+            ]
+          },
+          {
+            "group": "Strategy Development",
+            "pages": [
+              "development/overview",
+              "development/strategy-v2",
+              "development/controllers",
+              "development/executors",
+              "development/custom-scripts",
+              "development/backtesting"
+            ]
+          },
+          {
+            "group": "Gateway",
+            "pages": [
+              "gateway/overview",
+              "gateway/installation",
+              "gateway/configuration",
+              "gateway/supported-chains"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/config-files",
+              "configuration/security",
+              "configuration/global-settings",
+              "configuration/paper-trading"
+            ]
+          },
+          {
+            "group": "CLI Commands",
+            "pages": [
+              "cli/overview",
+              "cli/balance",
+              "cli/config",
+              "cli/connect",
+              "cli/create",
+              "cli/start-stop",
+              "cli/history",
+              "cli/status"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core",
+            "pages": [
+              "api/strategy-base",
+              "api/connector-base",
+              "api/trading-rule",
+              "api/order-tracker"
+            ]
+          },
+          {
+            "group": "Strategy V2",
+            "pages": [
+              "api/runnable-base",
+              "api/controllers",
+              "api/executors",
+              "api/models"
+            ]
+          },
+          {
+            "group": "Data Types",
+            "pages": [
+              "api/order-types",
+              "api/trade-types",
+              "api/market-data"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "140+ exchange connectors (CEX and DEX)",
+    "Built-in market making and arbitrage strategies",
+    "Strategy V2 framework with controllers and executors",
+    "Gateway middleware for DEX integration",
+    "Backtesting and paper trading",
+    "Real-time market data and order book",
+    "CLI and headless modes",
+    "Cython-optimized performance"
+  ],
+  "publicApiSurface": [
+    "StrategyBase",
+    "StrategyV2Base",
+    "ConnectorBase",
+    "ExchangeBase",
+    "OrderTracker",
+    "TradingRule",
+    "RunnableBase",
+    "Controller",
+    "Executor",
+    "HummingbotApplication",
+    "bin/hummingbot_quickstart.py",
+    "connect command",
+    "create command",
+    "start command",
+    "stop command",
+    "status command",
+    "balance command",
+    "config command",
+    "history command"
+  ]
+}
