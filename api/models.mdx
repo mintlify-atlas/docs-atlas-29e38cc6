@@ -1,0 +1,524 @@
+---
+title: Models
+description: Data models and types used in the V2 framework
+---
+
+## Overview
+
+The V2 framework uses several data models to represent executor states, actions, and performance metrics:
+
+- **ExecutorInfo** - Complete information about an executor's state
+- **ExecutorAction** - Actions that controllers send to executors
+- **PerformanceReport** - Performance metrics and statistics
+- **CloseType** - Enum defining how executors close
+- **RunnableStatus** - Enum defining component status
+- **TrackedOrder** - Order tracking model
+
+---
+
+## ExecutorInfo
+
+Complete information object about an executor's current state and performance.
+
+### Model Definition
+
+```python
+class ExecutorInfo(BaseModel):
+    id: str
+    timestamp: float
+    type: str
+    status: RunnableStatus
+    config: AnyExecutorConfig
+    net_pnl_pct: Decimal
+    net_pnl_quote: Decimal
+    cum_fees_quote: Decimal
+    filled_amount_quote: Decimal
+    is_active: bool
+    is_trading: bool
+    custom_info: Dict
+    close_timestamp: Optional[float] = None
+    close_type: Optional[CloseType] = None
+    controller_id: Optional[str] = None
+```
+
+**Location:** `hummingbot/strategy_v2/models/executors_info.py:21`
+
+### Fields
+
+<ResponseField name="id" type="str">
+  Unique identifier for the executor
+</ResponseField>
+
+<ResponseField name="timestamp" type="float">
+  Unix timestamp when executor was created
+</ResponseField>
+
+<ResponseField name="type" type="str">
+  Executor type (e.g., "PositionExecutor", "DCAExecutor")
+</ResponseField>
+
+<ResponseField name="status" type="RunnableStatus">
+  Current status (NOT_STARTED, RUNNING, SHUTTING_DOWN, TERMINATED)
+</ResponseField>
+
+<ResponseField name="config" type="AnyExecutorConfig">
+  The executor's configuration object (polymorphic based on type)
+</ResponseField>
+
+<ResponseField name="net_pnl_pct" type="Decimal">
+  Net profit/loss as a percentage
+</ResponseField>
+
+<ResponseField name="net_pnl_quote" type="Decimal">
+  Net profit/loss in quote currency
+</ResponseField>
+
+<ResponseField name="cum_fees_quote" type="Decimal">
+  Cumulative fees paid in quote currency
+</ResponseField>
+
+<ResponseField name="filled_amount_quote" type="Decimal">
+  Total filled amount in quote currency
+</ResponseField>
+
+<ResponseField name="is_active" type="bool">
+  True if executor is currently active (NOT_STARTED or RUNNING)
+</ResponseField>
+
+<ResponseField name="is_trading" type="bool">
+  True if executor is active and has filled orders
+</ResponseField>
+
+<ResponseField name="custom_info" type="Dict">
+  Executor-specific custom information (e.g., order IDs, level info)
+</ResponseField>
+
+<ResponseField name="close_timestamp" type="Optional[float]">
+  Unix timestamp when executor was closed (None if still active)
+</ResponseField>
+
+<ResponseField name="close_type" type="Optional[CloseType]">
+  How the executor was closed (None if still active)
+</ResponseField>
+
+<ResponseField name="controller_id" type="Optional[str]">
+  ID of the controller that created this executor
+</ResponseField>
+
+### Properties
+
+```python
+@property
+def is_done(self) -> bool:
+    return self.status == RunnableStatus.TERMINATED
+
+@property
+def side(self) -> Optional[TradeType]:
+    return self.custom_info.get("side", None)
+
+@property
+def trading_pair(self) -> Optional[str]:
+    return self.config.trading_pair
+
+@property
+def connector_name(self) -> Optional[str]:
+    return self.config.connector_name
+```
+
+---
+
+## ExecutorAction
+
+Base class for actions that controllers send to the executor orchestrator.
+
+### Base Action
+
+```python
+class ExecutorAction(BaseModel):
+    controller_id: Optional[str] = "main"
+```
+
+**Location:** `hummingbot/strategy_v2/models/executor_actions.py:10`
+
+### CreateExecutorAction
+
+Action to create and start a new executor.
+
+```python
+class CreateExecutorAction(ExecutorAction):
+    executor_config: ExecutorConfigType
+```
+
+**Location:** `executor_actions.py:17`
+
+<ParamField path="executor_config" type="ExecutorConfigBase" required>
+  Configuration for the executor to create (e.g., PositionExecutorConfig, DCAExecutorConfig)
+</ParamField>
+
+### StopExecutorAction
+
+Action to stop an existing executor.
+
+```python
+class StopExecutorAction(ExecutorAction):
+    executor_id: str
+    keep_position: Optional[bool] = False
+```
+
+**Location:** `executor_actions.py:24`
+
+<ParamField path="executor_id" type="str" required>
+  ID of the executor to stop
+</ParamField>
+
+<ParamField path="keep_position" type="bool" default="false">
+  If True, keeps the position open instead of closing it
+</ParamField>
+
+### StoreExecutorAction
+
+Action to store executor state (for persistence).
+
+```python
+class StoreExecutorAction(ExecutorAction):
+    executor_id: str
+```
+
+**Location:** `executor_actions.py:32`
+
+---
+
+## PerformanceReport
+
+Aggregated performance metrics for a controller's executors.
+
+### Model Definition
+
+```python
+class PerformanceReport(BaseModel):
+    realized_pnl_quote: Decimal = Decimal("0")
+    unrealized_pnl_quote: Decimal = Decimal("0")
+    unrealized_pnl_pct: Decimal = Decimal("0")
+    realized_pnl_pct: Decimal = Decimal("0")
+    global_pnl_quote: Decimal = Decimal("0")
+    global_pnl_pct: Decimal = Decimal("0")
+    volume_traded: Decimal = Decimal("0")
+    positions_summary: List = []
+    close_type_counts: Dict[CloseType, int] = {}
+```
+
+**Location:** `hummingbot/strategy_v2/models/executors_info.py:61`
+
+### Fields
+
+<ResponseField name="realized_pnl_quote" type="Decimal" default="0">
+  Realized profit/loss from closed positions in quote currency
+</ResponseField>
+
+<ResponseField name="unrealized_pnl_quote" type="Decimal" default="0">
+  Unrealized profit/loss from open positions in quote currency
+</ResponseField>
+
+<ResponseField name="unrealized_pnl_pct" type="Decimal" default="0">
+  Unrealized profit/loss as percentage
+</ResponseField>
+
+<ResponseField name="realized_pnl_pct" type="Decimal" default="0">
+  Realized profit/loss as percentage
+</ResponseField>
+
+<ResponseField name="global_pnl_quote" type="Decimal" default="0">
+  Total PnL (realized + unrealized) in quote currency
+</ResponseField>
+
+<ResponseField name="global_pnl_pct" type="Decimal" default="0">
+  Total PnL as percentage
+</ResponseField>
+
+<ResponseField name="volume_traded" type="Decimal" default="0">
+  Total trading volume in quote currency
+</ResponseField>
+
+<ResponseField name="positions_summary" type="List" default="[]">
+  List of position summaries
+</ResponseField>
+
+<ResponseField name="close_type_counts" type="Dict[CloseType, int]" default="{}">
+  Count of executors by close type (e.g., how many hit stop loss vs take profit)
+</ResponseField>
+
+---
+
+## CloseType Enum
+
+Defines the various ways an executor can be closed.
+
+```python
+class CloseType(Enum):
+    TIME_LIMIT = 1
+    STOP_LOSS = 2
+    TAKE_PROFIT = 3
+    EXPIRED = 4
+    EARLY_STOP = 5
+    TRAILING_STOP = 6
+    INSUFFICIENT_BALANCE = 7
+    FAILED = 8
+    COMPLETED = 9
+    POSITION_HOLD = 10
+```
+
+**Location:** `hummingbot/strategy_v2/models/executors.py:8`
+
+<ResponseField name="TIME_LIMIT" type="int" value="1">
+  Position closed because time limit was reached
+</ResponseField>
+
+<ResponseField name="STOP_LOSS" type="int" value="2">
+  Position closed by stop loss trigger
+</ResponseField>
+
+<ResponseField name="TAKE_PROFIT" type="int" value="3">
+  Position closed by take profit trigger
+</ResponseField>
+
+<ResponseField name="EXPIRED" type="int" value="4">
+  Executor expired (alternative to time limit)
+</ResponseField>
+
+<ResponseField name="EARLY_STOP" type="int" value="5">
+  Manually stopped by controller before completion
+</ResponseField>
+
+<ResponseField name="TRAILING_STOP" type="int" value="6">
+  Position closed by trailing stop trigger
+</ResponseField>
+
+<ResponseField name="INSUFFICIENT_BALANCE" type="int" value="7">
+  Executor closed due to insufficient balance
+</ResponseField>
+
+<ResponseField name="FAILED" type="int" value="8">
+  Executor failed (e.g., validation error, order failure)
+</ResponseField>
+
+<ResponseField name="COMPLETED" type="int" value="9">
+  Executor completed successfully
+</ResponseField>
+
+<ResponseField name="POSITION_HOLD" type="int" value="10">
+  Position is being held (keep_position=True)
+</ResponseField>
+
+---
+
+## RunnableStatus Enum
+
+Defines the lifecycle status of runnable components (executors and controllers).
+
+```python
+class RunnableStatus(Enum):
+    NOT_STARTED = 1
+    RUNNING = 2
+    SHUTTING_DOWN = 3
+    TERMINATED = 4
+```
+
+**Location:** `hummingbot/strategy_v2/models/base.py:4`
+
+<ResponseField name="NOT_STARTED" type="int" value="1">
+  Component created but not yet started
+</ResponseField>
+
+<ResponseField name="RUNNING" type="int" value="2">
+  Component is actively running
+</ResponseField>
+
+<ResponseField name="SHUTTING_DOWN" type="int" value="3">
+  Component is in the process of shutting down
+</ResponseField>
+
+<ResponseField name="TERMINATED" type="int" value="4">
+  Component has completely stopped
+</ResponseField>
+
+---
+
+## TrackedOrder
+
+Wrapper for tracking in-flight orders within executors.
+
+### Model Definition
+
+```python
+class TrackedOrder:
+    def __init__(self, order_id: Optional[str] = None)
+```
+
+**Location:** `hummingbot/strategy_v2/models/executors.py:21`
+
+### Properties
+
+<ResponseField name="order_id" type="str">
+  Client order ID for the tracked order
+</ResponseField>
+
+<ResponseField name="order" type="InFlightOrder">
+  Reference to the actual in-flight order object
+</ResponseField>
+
+<ResponseField name="price" type="Decimal">
+  Order price (from in-flight order)
+</ResponseField>
+
+<ResponseField name="average_executed_price" type="Decimal">
+  Average price at which order was executed
+</ResponseField>
+
+<ResponseField name="executed_amount_base" type="Decimal">
+  Amount executed in base asset
+</ResponseField>
+
+<ResponseField name="executed_amount_quote" type="Decimal">
+  Amount executed in quote asset
+</ResponseField>
+
+<ResponseField name="cum_fees_base" type="Decimal">
+  Cumulative fees in base asset
+</ResponseField>
+
+<ResponseField name="cum_fees_quote" type="Decimal">
+  Cumulative fees in quote asset
+</ResponseField>
+
+<ResponseField name="is_done" type="bool">
+  True if order is completely filled or cancelled
+</ResponseField>
+
+<ResponseField name="is_open" type="bool">
+  True if order is still open
+</ResponseField>
+
+<ResponseField name="is_filled" type="bool">
+  True if order is completely filled
+</ResponseField>
+
+---
+
+## Usage Examples
+
+### Working with ExecutorInfo
+
+```python
+from hummingbot.strategy_v2.models.executors_info import ExecutorInfo
+from hummingbot.strategy_v2.models.base import RunnableStatus
+
+# Get executor info from controller
+executor_infos = controller.executors_info
+
+for info in executor_infos:
+    print(f"Executor {info.id}:")
+    print(f"  Type: {info.type}")
+    print(f"  Status: {info.status.name}")
+    print(f"  Trading Pair: {info.trading_pair}")
+    print(f"  Side: {info.side}")
+    print(f"  PnL %: {info.net_pnl_pct * 100:.2f}%")
+    print(f"  PnL Quote: {info.net_pnl_quote}")
+    print(f"  Fees: {info.cum_fees_quote}")
+    
+    if info.is_done:
+        print(f"  Closed: {info.close_type.name}")
+        print(f"  Duration: {info.close_timestamp - info.timestamp:.0f}s")
+```
+
+### Creating Executor Actions
+
+```python
+from hummingbot.strategy_v2.models.executor_actions import (
+    CreateExecutorAction,
+    StopExecutorAction
+)
+from hummingbot.strategy_v2.executors.position_executor.data_types import (
+    PositionExecutorConfig
+)
+
+# Create action to start new executor
+create_action = CreateExecutorAction(
+    controller_id="my_controller",
+    executor_config=PositionExecutorConfig(
+        timestamp=time.time(),
+        connector_name="binance",
+        trading_pair="BTC-USDT",
+        side=TradeType.BUY,
+        amount=Decimal("0.01"),
+        # ... other config
+    )
+)
+
+# Create action to stop executor
+stop_action = StopExecutorAction(
+    controller_id="my_controller",
+    executor_id="executor_123",
+    keep_position=False  # Close the position
+)
+
+# Send actions to queue
+await actions_queue.put([create_action, stop_action])
+```
+
+### Analyzing Performance Report
+
+```python
+from hummingbot.strategy_v2.models.executors_info import PerformanceReport
+from hummingbot.strategy_v2.models.executors import CloseType
+
+report: PerformanceReport = controller.performance_report
+
+print(f"Overall Performance:")
+print(f"  Realized PnL: {report.realized_pnl_quote} ({report.realized_pnl_pct * 100:.2f}%)")
+print(f"  Unrealized PnL: {report.unrealized_pnl_quote} ({report.unrealized_pnl_pct * 100:.2f}%)")
+print(f"  Global PnL: {report.global_pnl_quote} ({report.global_pnl_pct * 100:.2f}%)")
+print(f"  Volume Traded: {report.volume_traded}")
+
+print(f"\nClose Type Breakdown:")
+for close_type, count in report.close_type_counts.items():
+    print(f"  {close_type.name}: {count}")
+
+# Calculate win rate
+take_profits = report.close_type_counts.get(CloseType.TAKE_PROFIT, 0)
+stop_losses = report.close_type_counts.get(CloseType.STOP_LOSS, 0)
+total = take_profits + stop_losses
+
+if total > 0:
+    win_rate = (take_profits / total) * 100
+    print(f"\nWin Rate: {win_rate:.1f}%")
+```
+
+### Filtering by Status and Close Type
+
+```python
+from hummingbot.strategy_v2.controllers.controller_base import ExecutorFilter
+from hummingbot.strategy_v2.models.executors import CloseType
+from hummingbot.strategy_v2.models.base import RunnableStatus
+
+# Get all executors that hit stop loss
+stop_loss_filter = ExecutorFilter(
+    statuses=[RunnableStatus.TERMINATED],
+    close_types=[CloseType.STOP_LOSS]
+)
+stop_loss_executors = controller.filter_executors(executor_filter=stop_loss_filter)
+
+print(f"Total stop losses: {len(stop_loss_executors)}")
+for executor in stop_loss_executors:
+    print(f"  {executor.id}: Lost {executor.net_pnl_quote}")
+
+# Get all take profits
+tp_filter = ExecutorFilter(
+    statuses=[RunnableStatus.TERMINATED],
+    close_types=[CloseType.TAKE_PROFIT]
+)
+take_profit_executors = controller.filter_executors(executor_filter=tp_filter)
+
+print(f"\nTotal take profits: {len(take_profit_executors)}")
+for executor in take_profit_executors:
+    print(f"  {executor.id}: Gained {executor.net_pnl_quote}")
+```

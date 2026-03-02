@@ -1,0 +1,521 @@
+---
+title: Avellaneda Market Making
+description: Advanced market making using the Avellaneda-Stoikov algorithm with dynamic spreads
+---
+
+## Overview
+
+Avellaneda Market Making implements the Avellaneda-Stoikov market making algorithm, which dynamically adjusts spreads based on market volatility, order book liquidity, and inventory risk. This strategy is designed for sophisticated traders seeking optimal spread placement.
+
+## How It Works
+
+The strategy uses quantitative finance principles to calculate optimal bid/ask spreads:
+
+1. **Calculate Reservation Price**: Adjusts mid-price based on inventory imbalance
+2. **Estimate Volatility**: Measures market volatility from recent price movements
+3. **Compute Optimal Spread**: Uses risk parameters to calculate theoretical spread
+4. **Place Orders**: Positions orders at calculated spreads
+5. **Adapt Dynamically**: Continuously recalculates based on market conditions
+
+```python
+# Simplified from Avellaneda-Stoikov algorithm
+reservation_price = mid_price - (inventory_delta * gamma * sigma^2 * time_left)
+optimal_spread = gamma * sigma^2 * time_left + (2/gamma) * ln(1 + gamma/k)
+
+bid_price = reservation_price - optimal_spread / 2
+ask_price = reservation_price + optimal_spread / 2
+```
+
+<Info>
+Unlike fixed-spread strategies, Avellaneda adjusts spreads wider in volatile markets and tighter in calm markets.
+</Info>
+
+## When to Use
+
+<CardGroup cols={2}>
+  <Card title="Best For" icon="check">
+    - Volatile markets with changing conditions
+    - Professional market makers
+    - Inventory risk management
+    - Optimizing risk-adjusted returns
+  </Card>
+  
+  <Card title="Avoid When" icon="xmark">
+    - Very stable markets (use Pure MM)
+    - Extremely low liquidity pairs
+    - When you need simple, predictable behavior
+    - Insufficient data for volatility calculation
+  </Card>
+</CardGroup>
+
+## Core Configuration Parameters
+
+### Basic Setup
+
+<ParamField path="exchange" type="string" required>
+  The exchange connector to use
+  
+  **Examples**: `binance`, `coinbase_pro`, `kraken`
+</ParamField>
+
+<ParamField path="market" type="string" required>
+  Trading pair in BASE-QUOTE format
+  
+  **Example**: `ETH-USDT`
+</ParamField>
+
+<ParamField path="order_amount" type="decimal" required>
+  Order size per level in base asset
+  
+  **Example**: `0.1` for 0.1 ETH per order
+</ParamField>
+
+### Execution Timeframe
+
+<ParamField path="execution_timeframe_mode" type="union" required>
+  Trading session duration for the strategy
+  
+  **Options**:
+  - `infinite`: Run indefinitely
+  - `from_date_to_date`: Specific date range
+  - `daily_between_times`: Recurring daily time window
+</ParamField>
+
+#### Infinite Mode
+```yaml
+execution_timeframe_mode:
+  infinite: {}
+```
+
+#### From Date to Date
+```yaml
+execution_timeframe_mode:
+  from_date_to_date:
+    start_datetime: "2026-01-01 00:00:00"
+    end_datetime: "2026-12-31 23:59:59"
+```
+
+#### Daily Between Times
+```yaml
+execution_timeframe_mode:
+  daily_between_times:
+    start_time: "09:00:00"
+    end_time: "17:00:00"
+```
+
+<Info>
+Timeframe affects the calculation of optimal spreads. Shorter timeframes lead to tighter spreads.
+</Info>
+
+### Risk Parameters
+
+<ParamField path="risk_factor" type="decimal" required>
+  Risk aversion parameter (γ - gamma) that controls spread width
+  
+  **Range**: > 0
+  
+  **Interpretation**:
+  - Low (0.1-0.5): Aggressive, tighter spreads, higher inventory risk
+  - Medium (0.5-2.0): Balanced approach
+  - High (2.0-10.0): Conservative, wider spreads, lower inventory risk
+  
+  **Example**: `1.0` for moderate risk
+</ParamField>
+
+<ParamField path="order_amount_shape_factor" type="decimal" default="0">
+  Amount adjustment parameter (η - eta) for multi-level orders
+  
+  **Range**: 0 to 1
+  
+  - `0`: All orders same size
+  - `0.5`: Moderate size variation
+  - `1`: Maximum size skewing
+</ParamField>
+
+### Inventory Management
+
+<ParamField path="inventory_target_base_pct" type="decimal" required>
+  Target inventory allocation for base asset. Enter `50` for 50%.
+  
+  **Range**: 0% to 100%
+  
+  **Example**: `50` maintains equal base and quote assets
+  
+  <Note>
+  The algorithm adjusts reservation price to move inventory toward this target.
+  </Note>
+</ParamField>
+
+### Spread Control
+
+<ParamField path="min_spread" type="decimal" default="0">
+  Minimum spread limit as percentage of mid-price. Enter `1` for 1%.
+  
+  **Example**: `0.1` ensures spreads never go below 0.1%
+  
+  Prevents unprofitable trades during low volatility.
+</ParamField>
+
+### Order Refresh Settings
+
+<ParamField path="order_refresh_time" type="float" required>
+  Frequency in seconds to recalculate and refresh orders
+  
+  **Example**: `10.0` refreshes every 10 seconds
+  
+  **Recommended**: 5-30 seconds depending on market conditions
+</ParamField>
+
+<ParamField path="max_order_age" type="float" default="1800">
+  Maximum seconds an order can remain before forced refresh
+  
+  **Default**: 1800 (30 minutes)
+</ParamField>
+
+<ParamField path="order_refresh_tolerance_pct" type="decimal" default="0">
+  Minimum price change percentage to trigger order refresh. Enter `1` for 1%.
+  
+  **Range**: -10% to 10%
+  
+  Reduces unnecessary order updates.
+</ParamField>
+
+<ParamField path="filled_order_delay" type="float" default="60">
+  Delay in seconds after order fill before placing new orders
+  
+  **Example**: `30` waits 30 seconds after fills
+</ParamField>
+
+### Market Data Parameters
+
+<ParamField path="volatility_buffer_size" type="int" default="200">
+  Number of price ticks stored to calculate volatility
+  
+  **Range**: 1 to 10,000
+  
+  **Recommended**: 200-500 for most markets
+  
+  More ticks = smoother but slower-reacting volatility estimate
+</ParamField>
+
+<ParamField path="trading_intensity_buffer_size" type="int" default="200">
+  Number of ticks stored to estimate order book liquidity
+  
+  **Range**: 1 to 10,000
+</ParamField>
+
+### Order Levels
+
+<ParamField path="order_levels_mode" type="union" default="single_order_level">
+  Number of order levels on each side
+  
+  **Options**:
+  - `single_order_level`: One order per side
+  - `multi_order_level`: Multiple orders per side
+</ParamField>
+
+#### Multi-Level Configuration
+
+```yaml
+order_levels_mode:
+  multi_order_level:
+    order_levels: 3
+    level_distances: 0.5
+```
+
+<ParamField path="order_levels" type="int" default="2">
+  Number of order levels (when using multi_order_level)
+  
+  **Range**: >= 2
+</ParamField>
+
+<ParamField path="level_distances" type="decimal" default="0">
+  Distance between levels as percentage of optimal spread
+  
+  **Example**: `0.5` places levels at 50% intervals of the calculated spread
+</ParamField>
+
+### Advanced Features
+
+<ParamField path="order_optimization_enabled" type="bool" default="true">
+  Adjust orders to top of book (best bid/ask jumping)
+</ParamField>
+
+<ParamField path="add_transaction_costs" type="bool" default="false">
+  Automatically include exchange fees in spread calculations
+  
+  Recommended for exchanges without maker rebates.
+</ParamField>
+
+<ParamField path="hanging_orders_mode" type="union" default="ignore_hanging_orders">
+  Handling of unfilled orders when opposite side fills
+  
+  **Options**:
+  - `ignore_hanging_orders`: Cancel all orders
+  - `track_hanging_orders`: Keep opposite orders active
+</ParamField>
+
+#### Track Hanging Orders
+
+```yaml
+hanging_orders_mode:
+  track_hanging_orders:
+    hanging_orders_cancel_pct: 10
+```
+
+<ParamField path="hanging_orders_cancel_pct" type="decimal" default="10">
+  Spread percentage at which to cancel hanging orders. Enter `1` for 1%.
+  
+  **Range**: 0% to 100%
+</ParamField>
+
+## Example Configurations
+
+### Basic Avellaneda Strategy
+
+```yaml
+strategy: avellaneda_market_making
+exchange: binance
+market: BTC-USDT
+execution_timeframe_mode:
+  infinite: {}
+order_amount: 0.01
+risk_factor: 1.0
+inventory_target_base_pct: 50
+order_refresh_time: 10.0
+min_spread: 0.1
+order_levels_mode:
+  single_order_level: {}
+order_optimization_enabled: true
+volatility_buffer_size: 200
+trading_intensity_buffer_size: 200
+```
+
+This provides:
+- Moderate risk with gamma = 1.0
+- 50/50 inventory target
+- 10-second refresh rate
+- Minimum 0.1% spread
+
+### Conservative Multi-Level
+
+```yaml
+strategy: avellaneda_market_making
+exchange: kraken
+market: ETH-USD
+execution_timeframe_mode:
+  daily_between_times:
+    start_time: "09:00:00"
+    end_time: "17:00:00"
+order_amount: 0.5
+risk_factor: 3.0
+order_amount_shape_factor: 0.3
+inventory_target_base_pct: 50
+order_refresh_time: 15.0
+min_spread: 0.2
+order_levels_mode:
+  multi_order_level:
+    order_levels: 5
+    level_distances: 0.5
+order_optimization_enabled: true
+add_transaction_costs: true
+volatility_buffer_size: 300
+```
+
+Features:
+- Conservative risk_factor = 3.0 (wider spreads)
+- 5 order levels with increasing sizes
+- Only trades during business hours
+- Transaction costs included
+- Larger volatility buffer for stability
+
+### Aggressive with Hanging Orders
+
+```yaml
+strategy: avellaneda_market_making
+exchange: coinbase_pro
+market: SOL-USD
+execution_timeframe_mode:
+  infinite: {}
+order_amount: 10
+risk_factor: 0.5
+inventory_target_base_pct: 50
+order_refresh_time: 5.0
+max_order_age: 300
+min_spread: 0.05
+order_levels_mode:
+  single_order_level: {}
+hanging_orders_mode:
+  track_hanging_orders:
+    hanging_orders_cancel_pct: 5
+order_optimization_enabled: true
+volatility_buffer_size: 100
+```
+
+Optimized for:
+- Low risk_factor = 0.5 (tighter spreads)
+- Fast 5-second refresh
+- Hanging orders for fill optimization
+- Smaller volatility buffer for faster reaction
+
+## Algorithm Explained
+
+### Mathematical Foundation
+
+The Avellaneda-Stoikov algorithm optimizes market making by solving:
+
+```
+Maximize: E[Wealth] - γ * Var[Wealth]
+```
+
+Where:
+- `γ` (gamma) = `risk_factor` parameter
+- Higher γ = more risk-averse = wider spreads
+
+### Key Calculations
+
+<Steps>
+  <Step title="Volatility Estimation">
+    ```python
+    σ = std_dev(price_changes) * sqrt(samples_per_day)
+    ```
+    Uses `volatility_buffer_size` recent prices
+  </Step>
+  
+  <Step title="Reservation Price">
+    ```python
+    q = current_inventory - target_inventory
+    r = mid_price - q * γ * σ² * T
+    ```
+    Adjusts for inventory imbalance
+  </Step>
+  
+  <Step title="Optimal Spread">
+    ```python
+    δ = γ * σ² * T + (2/γ) * ln(1 + γ/k)
+    ```
+    Where k = order book liquidity parameter
+  </Step>
+  
+  <Step title="Final Prices">
+    ```python
+    bid = r - δ/2
+    ask = r + δ/2
+    # Apply min_spread constraint
+    spread = max(ask - bid, mid_price * min_spread)
+    ```
+  </Step>
+</Steps>
+
+## Tips for Success
+
+<AccordionGroup>
+  <Accordion title="Start with Moderate Risk Factor">
+    Begin with `risk_factor: 1.0` and adjust based on results:
+    - Too many fills but losses? Increase risk_factor
+    - Not enough fills? Decrease risk_factor
+  </Accordion>
+  
+  <Accordion title="Calibrate Timeframe">
+    Execution timeframe affects spread calculations:
+    - Longer timeframes → wider spreads
+    - For infinite mode, algorithm uses 24-hour window
+    - Daily windows work well for active trading hours
+  </Accordion>
+  
+  <Accordion title="Monitor Volatility Impact">
+    Check volatility estimates:
+    ```bash
+    status --verbose
+    ```
+    High volatility → wider spreads automatically
+  </Accordion>
+  
+  <Accordion title="Use Multi-Level for Depth">
+    Multi-level orders provide:
+    - Better capital efficiency
+    - Capture wider price movements
+    - Improved inventory management
+  </Accordion>
+</AccordionGroup>
+
+## Performance Tuning
+
+### Parameter Sensitivity
+
+| Parameter | Effect on Spreads | Effect on Fills |
+|-----------|-------------------|------------------|
+| risk_factor ↑ | Wider | Fewer |
+| volatility ↑ | Wider | Fewer |
+| inventory_imbalance ↑ | Skewed | Rebalancing |
+| min_spread ↑ | Wider floor | Fewer |
+
+### Optimization Guidelines
+
+<Tabs>
+  <Tab title="High Volatility Markets">
+    ```yaml
+    risk_factor: 2.0              # Higher risk aversion
+    min_spread: 0.3               # Protect against volatility
+    volatility_buffer_size: 150   # Shorter window, faster reaction
+    order_refresh_time: 5.0       # Quick adjustments
+    ```
+  </Tab>
+  
+  <Tab title="Stable Markets">
+    ```yaml
+    risk_factor: 0.5              # Tighter spreads
+    min_spread: 0.05              # Allow very tight spreads
+    volatility_buffer_size: 500   # Longer window, smoother
+    order_refresh_time: 30.0      # Less frequent updates
+    ```
+  </Tab>
+  
+  <Tab title="Trending Markets">
+    ```yaml
+    risk_factor: 1.5
+    inventory_target_base_pct: 40  # Lean against trend
+    hanging_orders_mode:
+      track_hanging_orders:
+        hanging_orders_cancel_pct: 3
+    ```
+  </Tab>
+</Tabs>
+
+## Risk Management
+
+<Warning>
+**Key Risks**:
+- **Model Risk**: Algorithm assumptions may not hold in all conditions
+- **Inventory Risk**: Large inventory imbalances in strong trends
+- **Volatility Risk**: Sudden volatility spikes can cause losses
+- **Liquidity Risk**: Low liquidity affects spread calculations
+</Warning>
+
+**Mitigation Strategies**:
+1. Set conservative `min_spread` to ensure minimum profitability
+2. Use `inventory_target_base_pct` to control inventory exposure
+3. Enable `add_transaction_costs` to account for fees
+4. Start with higher `risk_factor` and decrease gradually
+5. Use execution timeframes to limit trading to liquid hours
+
+## Comparison with Pure Market Making
+
+| Feature | Avellaneda | Pure Market Making |
+|---------|------------|--------------------|
+| Spread Calculation | Dynamic (volatility-based) | Fixed |
+| Inventory Management | Built-in (reservation price) | Optional (inventory skew) |
+| Market Adaptation | Automatic | Manual config changes |
+| Complexity | High | Low |
+| Best For | Volatile markets | Stable markets |
+
+## Source Code Reference
+
+Configuration: `/source/hummingbot/strategy/avellaneda_market_making/avellaneda_market_making_config_map_pydantic.py:156`
+
+Strategy Implementation: `/source/hummingbot/strategy/avellaneda_market_making/`
+
+## Related Strategies
+
+- [Pure Market Making](/strategies/pure-market-making): Simpler fixed-spread market making
+- [Perpetual Market Making](/strategies/perpetual-market-making): Avellaneda-style approach for derivatives

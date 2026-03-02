@@ -1,0 +1,287 @@
+---
+title: Pure Market Making
+description: Single exchange market making strategy for providing liquidity
+---
+
+## Overview
+
+Pure Market Making is the most fundamental market making strategy in Hummingbot. It places limit buy and sell orders on a single exchange to provide liquidity and earn spreads.
+
+## How It Works
+
+The strategy continuously places bid and ask orders around the mid-price:
+
+1. Calculates the mid-price from the order book
+2. Places a buy order below the mid-price (bid_spread)
+3. Places a sell order above the mid-price (ask_spread)
+4. Refreshes orders periodically based on configuration
+5. Captures the spread when both sides fill
+
+```python
+# From source: hummingbot/strategy/pure_market_making/
+bid_price = mid_price * (1 - bid_spread)
+ask_price = mid_price * (1 + ask_spread)
+```
+
+## When to Use
+
+<CardGroup cols={2}>
+  <Card title="Best For" icon="check">
+    - Stable markets with consistent volume
+    - Exchanges with rebates for makers
+    - Trading pairs with tight spreads
+    - Accumulating inventory over time
+  </Card>
+  
+  <Card title="Avoid When" icon="xmark">
+    - Markets are highly volatile
+    - Low liquidity pairs with wide spreads
+    - Exchange has high maker fees
+    - Dealing with low-float tokens
+  </Card>
+</CardGroup>
+
+## Core Configuration Parameters
+
+### Required Parameters
+
+<ParamField path="exchange" type="string" required>
+  The spot exchange connector to use (e.g., `binance`, `coinbase_pro`)
+</ParamField>
+
+<ParamField path="market" type="string" required>
+  Trading pair in BASE-QUOTE format (e.g., `BTC-USDT`)
+</ParamField>
+
+<ParamField path="bid_spread" type="decimal" required>
+  Distance from mid-price to place bid orders. Enter `1` for 1%.
+  
+  **Example**: `0.5` places bids 0.5% below mid-price
+</ParamField>
+
+<ParamField path="ask_spread" type="decimal" required>
+  Distance from mid-price to place ask orders. Enter `1` for 1%.
+  
+  **Example**: `0.5` places asks 0.5% above mid-price
+</ParamField>
+
+<ParamField path="order_amount" type="decimal" required>
+  Amount of base asset per order
+  
+  **Example**: `0.1` for 0.1 BTC per order
+</ParamField>
+
+<ParamField path="order_refresh_time" type="float" required>
+  Frequency in seconds to cancel and replace orders
+  
+  **Default**: No default, must be specified
+</ParamField>
+
+### Order Management
+
+<ParamField path="order_levels" type="int" default="1">
+  Number of orders to place on each side
+  
+  **Example**: `3` places 3 buy and 3 sell orders
+</ParamField>
+
+<ParamField path="order_level_spread" type="decimal" default="1.0">
+  Percentage increment for subsequent order levels. Required if `order_levels > 1`.
+  
+  **Example**: With `bid_spread=0.5` and `order_level_spread=0.3`, orders are placed at 0.5%, 0.8%, 1.1%
+</ParamField>
+
+<ParamField path="order_level_amount" type="decimal" default="0">
+  Amount to increase/decrease per level. Use negative values to decrease.
+  
+  **Example**: `0.05` increases each level by 0.05 base asset
+</ParamField>
+
+<ParamField path="order_refresh_tolerance_pct" type="decimal" default="0">
+  Percent price change required to refresh orders. Prevents excessive order cancellations.
+  
+  **Range**: -10% to 10%
+</ParamField>
+
+### Inventory Management
+
+<ParamField path="inventory_skew_enabled" type="bool" default="false">
+  Adjust order sizes based on inventory imbalance
+</ParamField>
+
+<ParamField path="inventory_target_base_pct" type="decimal" default="50">
+  Target base asset percentage when inventory skew is enabled. Enter `50` for 50%.
+  
+  **Example**: `60` targets 60% base asset, 40% quote asset
+</ParamField>
+
+<ParamField path="inventory_range_multiplier" type="decimal" default="1">
+  Tolerance range around inventory target as a multiple of order size
+</ParamField>
+
+### Price Sources
+
+<ParamField path="price_source" type="string" default="current_market">
+  Price reference for order placement
+  
+  **Options**:
+  - `current_market`: Use current exchange mid-price
+  - `external_market`: Use another exchange's price
+  - `custom_api`: Use custom API endpoint
+</ParamField>
+
+<ParamField path="price_type" type="string" default="mid_price">
+  Type of price to use as reference
+  
+  **Options**:
+  - `mid_price`: Average of best bid and ask
+  - `last_price`: Last traded price
+  - `last_own_trade_price`: Your last trade price
+  - `best_bid`: Top bid price
+  - `best_ask`: Top ask price
+  - `inventory_cost`: Your inventory cost basis
+</ParamField>
+
+<ParamField path="price_source_exchange" type="string">
+  External exchange for price reference (when `price_source=external_market`)
+</ParamField>
+
+<ParamField path="price_source_market" type="string">
+  Trading pair on external exchange
+</ParamField>
+
+### Advanced Features
+
+<ParamField path="hanging_orders_enabled" type="bool" default="false">
+  Keep orders active when one side fills
+</ParamField>
+
+<ParamField path="hanging_orders_cancel_pct" type="decimal" default="10">
+  Spread percentage at which hanging orders are cancelled. Enter `1` for 1%.
+</ParamField>
+
+<ParamField path="order_optimization_enabled" type="bool" default="false">
+  Jump to top of order book (best bid/ask jumping)
+</ParamField>
+
+<ParamField path="ping_pong_enabled" type="bool" default="false">
+  Alternate between buy and sell orders after fills
+</ParamField>
+
+<ParamField path="price_ceiling" type="decimal" default="-1">
+  Price above which only sell orders are placed. Use `-1` to disable.
+</ParamField>
+
+<ParamField path="price_floor" type="decimal" default="-1">
+  Price below which only buy orders are placed. Use `-1` to disable.
+</ParamField>
+
+<ParamField path="add_transaction_costs" type="bool" default="false">
+  Automatically add exchange fees to order prices
+</ParamField>
+
+## Example Configuration
+
+### Basic Setup
+
+```yaml
+strategy: pure_market_making
+exchange: binance
+market: ETH-USDT
+bid_spread: 0.1
+ask_spread: 0.1
+order_amount: 0.05
+order_refresh_time: 30.0
+```
+
+This configuration:
+- Trades ETH-USDT on Binance
+- Places orders 0.1% away from mid-price
+- Uses 0.05 ETH per order
+- Refreshes orders every 30 seconds
+
+### Multi-Level Orders
+
+```yaml
+strategy: pure_market_making
+exchange: coinbase_pro
+market: BTC-USD
+bid_spread: 0.05
+ask_spread: 0.05
+order_amount: 0.01
+order_levels: 5
+order_level_spread: 0.05
+order_level_amount: 0.005
+order_refresh_time: 60.0
+```
+
+This places 5 orders on each side:
+- Level 1: 0.05% spread, 0.01 BTC
+- Level 2: 0.10% spread, 0.015 BTC
+- Level 3: 0.15% spread, 0.02 BTC
+- Level 4: 0.20% spread, 0.025 BTC
+- Level 5: 0.25% spread, 0.03 BTC
+
+### With Inventory Management
+
+```yaml
+strategy: pure_market_making
+exchange: kraken
+market: SOL-USD
+bid_spread: 0.2
+ask_spread: 0.2
+order_amount: 10
+order_refresh_time: 45.0
+inventory_skew_enabled: true
+inventory_target_base_pct: 50
+inventory_range_multiplier: 1.5
+```
+
+This maintains a 50/50 base/quote balance and adjusts order sizes when inventory deviates.
+
+## Tips for Success
+
+<AccordionGroup>
+  <Accordion title="Start with Conservative Spreads">
+    Begin with spreads of 0.3-0.5% to ensure fills while learning the strategy. Gradually tighten spreads as you gain experience.
+  </Accordion>
+  
+  <Accordion title="Monitor Inventory Balance">
+    Enable inventory skew to prevent accumulating too much of one asset. This is especially important in trending markets.
+  </Accordion>
+  
+  <Accordion title="Use Order Refresh Tolerance">
+    Set `order_refresh_tolerance_pct` to 0.1-0.2% to reduce order cancellations during minor price fluctuations, saving on fees.
+  </Accordion>
+  
+  <Accordion title="Consider Multi-Level Orders">
+    Using 3-5 order levels provides better capital efficiency and catches both small and large price movements.
+  </Accordion>
+</AccordionGroup>
+
+## Risk Management
+
+<Warning>
+**Key Risks**:
+- **Inventory Risk**: Market moves against your position
+- **Fee Risk**: Frequent order updates consume fee rebates
+- **Competition**: Other bots may have tighter spreads
+- **Volatility**: Sudden price changes can cause losses
+</Warning>
+
+**Mitigation Strategies**:
+- Set `price_ceiling` and `price_floor` to limit exposure
+- Use `filled_order_delay` to pause after fills during volatile periods
+- Enable `add_transaction_costs` to ensure profitable spreads
+- Start with small `order_amount` values
+
+## Source Code Reference
+
+Configuration: `/source/hummingbot/strategy/pure_market_making/pure_market_making_config_map.py:120`
+
+Strategy Implementation: `/source/hummingbot/strategy/pure_market_making/`
+
+## Related Strategies
+
+- [Avellaneda Market Making](/strategies/avellaneda-market-making): Advanced market making with dynamic spreads
+- [Perpetual Market Making](/strategies/perpetual-market-making): Market making on derivatives

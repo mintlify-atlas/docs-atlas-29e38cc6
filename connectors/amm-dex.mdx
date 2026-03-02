@@ -1,0 +1,503 @@
+---
+title: AMM DEX Connectors
+description: Automated Market Maker DEX connectors for DeFi liquidity pools and DEX aggregators
+keywords: ['AMM', 'DEX', 'DeFi', 'liquidity', 'Uniswap', 'Gateway', 'swap', 'CLMM']
+---
+
+AMM DEX connectors enable interaction with Automated Market Maker protocols through the Hummingbot Gateway middleware. These connectors provide access to decentralized liquidity pools, DEX aggregators, and concentrated liquidity protocols across multiple blockchain networks.
+
+## How AMM DEX Connectors Work
+
+AMM DEX connectors operate through the Gateway middleware, which provides standardized interfaces to different DeFi protocols:
+
+<CardGroup cols={2}>
+  <Card title="Gateway Middleware" icon="network-wired">
+    TypeScript-based API layer that translates Hummingbot commands to protocol-specific calls
+  </Card>
+  <Card title="Liquidity Pools" icon="droplet">
+    Trade against algorithmic liquidity pools instead of order books
+  </Card>
+  <Card title="Multi-Chain Support" icon="link">
+    Connect to AMMs across Ethereum, Polygon, Avalanche, Solana, and more
+  </Card>
+  <Card title="Smart Routing" icon="route">
+    DEX aggregators automatically find optimal swap paths across multiple pools
+  </Card>
+</CardGroup>
+
+### AMM Sub-Types
+
+<Tabs>
+  <Tab title="Router (DEX Aggregators)">
+    Smart routing protocols that find optimal trade paths:
+    
+    **How they work:**
+    - Split trades across multiple DEXs and pools
+    - Optimize for best price execution
+    - Minimize slippage and price impact
+    - Compare routes in real-time
+    
+    **Examples**: 0x Protocol, Jupiter, Uniswap Auto Router
+    
+    **Best for**: Large trades, best price execution, multi-pool arbitrage
+  </Tab>
+  
+  <Tab title="AMM (Constant Product)">
+    Traditional automated market makers using x*y=k formula:
+    
+    **How they work:**
+    - Liquidity providers deposit equal value of two tokens
+    - Price determined by ratio in pool
+    - Trades directly impact price (slippage)
+    - Earn fees from swaps (typically 0.3%)
+    
+    **Examples**: Uniswap V2, SushiSwap, PancakeSwap
+    
+    **Best for**: Standard swaps, liquidity provision, simple arbitrage
+  </Tab>
+  
+  <Tab title="CLMM (Concentrated Liquidity)">
+    Advanced AMMs with customizable price ranges:
+    
+    **How they work:**
+    - Liquidity providers set custom price ranges
+    - Higher capital efficiency than traditional AMMs
+    - Multiple fee tiers (0.01%, 0.05%, 0.3%, 1%)
+    - Active liquidity management required
+    
+    **Examples**: Uniswap V3, Raydium CLMM, Meteora
+    
+    **Best for**: Advanced liquidity provision, concentrated market making
+  </Tab>
+</Tabs>
+
+### Installing Gateway
+
+Gateway is required for all AMM DEX connectors:
+
+<Steps>
+  <Step title="Install Gateway during setup">
+    When setting up Hummingbot, answer `y` when prompted:
+    ```bash
+    make setup
+    # Answer 'y' when prompted:
+    Include Gateway? [y/N] y
+    ```
+  </Step>
+  
+  <Step title="Configure Gateway certificates">
+    For production use with HTTPS:
+    ```bash
+    # In Hummingbot
+    gateway generate-certs
+    ```
+    
+    <Info>
+    Gateway runs in development mode (HTTP) by default. Use `DEV=false` for production HTTPS mode.
+    </Info>
+  </Step>
+  
+  <Step title="Connect wallet to Gateway">
+    Configure your wallet for the desired blockchain:
+    ```bash
+    gateway connect [chain]
+    ```
+    Enter your private key when prompted.
+  </Step>
+  
+  <Step title="Test Gateway connection">
+    Verify Gateway is running:
+    ```bash
+    gateway status
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+Gateway requires your wallet private key to sign transactions. Use a dedicated trading wallet, never your primary holdings wallet.
+</Warning>
+
+## Router (DEX Aggregator) Connectors
+
+DEX aggregators find optimal swap routes across multiple AMMs:
+
+<AccordionGroup>
+  <Accordion title="0x Protocol" icon="network-wired">
+    **Connector ID**: `0x`
+    
+    Professional-grade DEX aggregator across EVM chains.
+    
+    **Features:**
+    - Aggregates 100+ DEXs on supported chains
+    - Smart order routing (SOR)
+    - RFQ (Request for Quote) from market makers
+    - Multi-chain support (Ethereum, Polygon, BSC, Arbitrum, etc.)
+    
+    **Networks**: Ethereum, Polygon, BSC, Arbitrum, Optimism, Avalanche
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/gateway/0x/)
+  </Accordion>
+  
+  <Accordion title="Jupiter" icon="planet-ringed">
+    **Connector ID**: `jupiter`
+    
+    Leading DEX aggregator on Solana.
+    
+    **Features:**
+    - Aggregates all major Solana DEXs
+    - Advanced routing algorithms
+    - Extremely low fees
+    - High-speed execution
+    - Limit orders via Jupiter
+    
+    **Network**: Solana
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/gateway/jupiter/)
+  </Accordion>
+  
+  <Accordion title="Uniswap Router" icon="circle-notch">
+    **Connector ID**: `uniswap` (auto-routing mode)
+    
+    Uniswap's smart order router.
+    
+    **Features:**
+    - Routes across V2 and V3 pools
+    - Multi-hop optimization
+    - Gas-optimized routing
+    - Best price execution
+    
+    **Networks**: Ethereum, Polygon, Arbitrum, Optimism, Base
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/gateway/uniswap/)
+  </Accordion>
+</AccordionGroup>
+
+## AMM (Constant Product) Connectors
+
+Traditional AMMs using constant product (x*y=k) formula:
+
+<CardGroup cols={2}>
+  <Card title="Balancer" icon="droplet">
+    **Connector ID**: `balancer`
+    
+    Multi-token pools with customizable weights.
+    
+    **Networks**: Ethereum, Polygon, Arbitrum
+    
+    [Docs](https://hummingbot.org/exchanges/gateway/balancer/)
+  </Card>
+  
+  <Card title="Curve" icon="chart-line">
+    **Connector ID**: `curve`
+    
+    Stablecoin-optimized AMM with low slippage.
+    
+    **Networks**: Ethereum, Polygon, Arbitrum, Optimism
+    
+    [Docs](https://hummingbot.org/exchanges/gateway/curve/)
+  </Card>
+  
+  <Card title="PancakeSwap" icon="cake-candles">
+    **Connector ID**: `pancakeswap`
+    
+    Leading AMM on BNB Chain.
+    
+    **Networks**: BSC, Ethereum
+    
+    [Docs](https://hummingbot.org/exchanges/gateway/pancakeswap/)
+  </Card>
+  
+  <Card title="QuickSwap" icon="bolt">
+    **Connector ID**: `quickswap`
+    
+    Polygon's primary AMM.
+    
+    **Networks**: Polygon, Polygon zkEVM
+    
+    [Docs](https://hummingbot.org/exchanges/gateway/quickswap/)
+  </Card>
+  
+  <Card title="Raydium" icon="radiation">
+    **Connector ID**: `raydium` (AMM mode)
+    
+    Solana's leading AMM and liquidity provider.
+    
+    **Network**: Solana
+    
+    [Docs](https://hummingbot.org/exchanges/gateway/raydium/)
+  </Card>
+  
+  <Card title="SushiSwap" icon="fish">
+    **Connector ID**: `sushiswap`
+    
+    Multi-chain AMM fork of Uniswap V2.
+    
+    **Networks**: Ethereum, Polygon, Arbitrum, Avalanche
+    
+    [Docs](https://hummingbot.org/exchanges/gateway/sushiswap/)
+  </Card>
+  
+  <Card title="Trader Joe" icon="mountain">
+    **Connector ID**: `traderjoe`
+    
+    Avalanche's native AMM.
+    
+    **Network**: Avalanche
+    
+    [Docs](https://hummingbot.org/exchanges/gateway/traderjoe/)
+  </Card>
+  
+  <Card title="Uniswap V2" icon="circle-notch">
+    **Connector ID**: `uniswap` (V2 mode)
+    
+    Original constant product AMM.
+    
+    **Networks**: Ethereum and forks
+    
+    [Docs](https://hummingbot.org/exchanges/gateway/uniswap/)
+  </Card>
+</CardGroup>
+
+## CLMM (Concentrated Liquidity) Connectors
+
+Advanced AMMs with custom price range liquidity:
+
+<AccordionGroup>
+  <Accordion title="Meteora" icon="meteor">
+    **Connector ID**: `meteora`
+    
+    Dynamic liquidity pools on Solana.
+    
+    **Features:**
+    - Dynamic fee tiers
+    - Concentrated liquidity
+    - Multi-token pools
+    - High capital efficiency
+    
+    **Network**: Solana
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/gateway/meteora/)
+  </Accordion>
+  
+  <Accordion title="Raydium CLMM" icon="radiation">
+    **Connector ID**: `raydium` (CLMM mode)
+    
+    Concentrated liquidity on Solana.
+    
+    **Features:**
+    - Custom price ranges
+    - Multiple fee tiers
+    - Integrated with Raydium AMM
+    - High yields for LPs
+    
+    **Network**: Solana
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/gateway/raydium/)
+  </Accordion>
+  
+  <Accordion title="Uniswap V3" icon="circle-notch">
+    **Connector ID**: `uniswap` (V3 mode)
+    
+    Industry-leading concentrated liquidity protocol.
+    
+    **Features:**
+    - Custom price ranges
+    - Multiple fee tiers (0.01%, 0.05%, 0.3%, 1%)
+    - NFT position tokens
+    - Superior capital efficiency
+    
+    **Networks**: Ethereum, Polygon, Arbitrum, Optimism, Base
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/gateway/uniswap/)
+  </Accordion>
+</AccordionGroup>
+
+## Supported Features by Sub-Type
+
+| Feature | Router | AMM | CLMM |
+|---------|--------|-----|------|
+| Token swaps | Yes | Yes | Yes |
+| Liquidity provision | No | Yes | Yes |
+| Custom price ranges | No | No | Yes |
+| Multi-hop routing | Yes | Limited | Limited |
+| Fee tiers | N/A | Fixed | Multiple |
+| Price impact | Minimized | Higher | Lower |
+| Gas optimization | Yes | Standard | Standard |
+
+## Trading on AMM DEXs
+
+### Understanding Slippage
+
+AMMs experience price impact from trades:
+
+<Info>
+**Slippage Factors**
+- Pool liquidity depth
+- Trade size relative to pool
+- Price volatility
+- Network congestion (gas prices)
+
+Larger trades = higher slippage
+</Info>
+
+<CodeGroup>
+
+```python calculate_slippage.py
+# Example: Price impact calculation
+pool_liquidity = 1000000  # $1M pool
+trade_size = 50000  # $50k trade
+
+# Simplified price impact
+impact_percentage = (trade_size / pool_liquidity) * 100
+print(f"Estimated price impact: {impact_percentage}%")  # ~5%
+
+# Actual impact depends on AMM curve
+```
+
+</CodeGroup>
+
+<Tip>
+**Minimizing Slippage**
+
+1. Use DEX aggregators for large trades
+2. Split large orders across multiple transactions
+3. Trade during high liquidity periods
+4. Choose pools with deeper liquidity
+5. Use CLMM pools for better execution
+</Tip>
+
+## Gas Fees on AMM DEXs
+
+Gas costs vary significantly by network:
+
+| Network | Typical Swap Cost | Liquidity Add/Remove |
+|---------|-------------------|----------------------|
+| Ethereum | $5-50 | $20-100 |
+| Polygon | $0.01-0.10 | $0.05-0.30 |
+| Arbitrum | $0.10-1.00 | $0.50-3.00 |
+| Optimism | $0.10-1.00 | $0.50-3.00 |
+| BSC | $0.10-0.50 | $0.30-1.50 |
+| Avalanche | $0.50-2.00 | $1.00-5.00 |
+| Solana | $0.0001-0.001 | $0.001-0.01 |
+
+<Note>
+Gas costs fluctuate with network congestion. Monitor gas prices before executing large trades.
+</Note>
+
+## Liquidity Provision
+
+AMM and CLMM connectors support liquidity provision:
+
+<Tabs>
+  <Tab title="Traditional AMM">
+    Provide liquidity to constant product pools:
+    
+    **Process:**
+    1. Deposit equal value of both tokens
+    2. Receive LP tokens representing your share
+    3. Earn fees from all swaps (pro-rata)
+    4. Withdraw anytime by burning LP tokens
+    
+    **Risks:**
+    - Impermanent loss from price divergence
+    - Smart contract risk
+    - Concentration risk in single pool
+  </Tab>
+  
+  <Tab title="Concentrated Liquidity">
+    Provide liquidity within custom price ranges:
+    
+    **Process:**
+    1. Choose price range for your liquidity
+    2. Deposit tokens (ratio depends on range)
+    3. Earn fees when price is in range
+    4. Rebalance as price moves
+    
+    **Advantages:**
+    - Higher capital efficiency (up to 4000x)
+    - Earn more fees per dollar
+    - Customizable risk/return profile
+    
+    **Challenges:**
+    - Requires active management
+    - Higher impermanent loss if price exits range
+    - More complex than traditional AMM
+  </Tab>
+</Tabs>
+
+## Configuration Example
+
+Example Gateway configuration for AMM connector:
+
+```yaml
+connector: uniswap
+chain: ethereum
+network: mainnet
+market: WETH-USDC
+amount: 1.0
+slippage: 1.0  # 1% max slippage
+```
+
+## Multi-Chain Support
+
+AMM connectors support multiple blockchain networks:
+
+<CardGroup cols={3}>
+  <Card title="Ethereum" icon="ethereum">
+    Mainnet and testnets
+    
+    Highest liquidity, highest gas
+  </Card>
+  <Card title="Polygon" icon="polygon">
+    Low-cost EVM sidechain
+    
+    Fast and cheap transactions
+  </Card>
+  <Card title="Arbitrum" icon="link">
+    Optimistic rollup L2
+    
+    Lower fees, Ethereum security
+  </Card>
+  <Card title="Optimism" icon="circle">
+    Optimistic rollup L2
+    
+    Growing ecosystem
+  </Card>
+  <Card title="BSC" icon="bnb">
+    Binance Smart Chain
+    
+    Large user base
+  </Card>
+  <Card title="Avalanche" icon="avalanche">
+    High-performance L1
+    
+    Fast finality
+  </Card>
+  <Card title="Solana" icon="solana">
+    High-speed L1
+    
+    Ultra-low fees
+  </Card>
+  <Card title="Base" icon="base">
+    Coinbase L2
+    
+    Growing adoption
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Gateway Installation" icon="download" href="/gateway/installation">
+    Install and configure Gateway middleware
+  </Card>
+  <Card title="CLOB DEX" icon="cube" href="/connectors/clob-dex-spot">
+    Explore order book DEX connectors
+  </Card>
+  <Card title="Liquidity Strategies" icon="droplet" href="/strategies/liquidity">
+    Learn liquidity provision strategies
+  </Card>
+  <Card title="Multi-Chain Trading" icon="link" href="/strategies/cross-chain">
+    Cross-chain arbitrage opportunities
+  </Card>
+</CardGroup>

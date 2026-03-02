@@ -1,0 +1,441 @@
+---
+title: StrategyBase
+description: Base class for all Hummingbot trading strategies
+---
+
+`StrategyBase` is the foundational class that all Hummingbot strategies extend. It provides the core functionality for order tracking, market event handling, and lifecycle management.
+
+## Class Definition
+
+```python
+class StrategyBase(TimeIterator):
+    def __init__(self):
+        super().__init__()
+        self._sb_markets = set()
+        self._sb_order_tracker = OrderTracker()
+```
+
+## Core Properties
+
+<ParamField path="active_markets" type="List[ConnectorBase]">
+  Returns a list of all active market connectors being used by the strategy.
+</ParamField>
+
+<ParamField path="order_tracker" type="OrderTracker">
+  Returns the order tracker instance that manages all limit and market orders for this strategy.
+</ParamField>
+
+<ParamField path="trades" type="List[Trade]">
+  Returns a list of all completed trades from the market. The trades are extracted from market event logs and sorted by timestamp.
+</ParamField>
+
+## Initialization Methods
+
+### init_params
+
+```python
+def init_params(self, *args, **kwargs):
+    """
+    Assigns strategy parameters, this function must be called directly after init.
+    The reason for this is to make the parameters discoverable through introspect 
+    (this is not possible on init of a Cython class).
+    """
+    raise NotImplementedError
+```
+
+<ParamField path="args" type="*args">
+  Variable positional arguments specific to the strategy implementation.
+</ParamField>
+
+<ParamField path="kwargs" type="**kwargs">
+  Variable keyword arguments specific to the strategy implementation.
+</ParamField>
+
+## Market Management
+
+### add_markets
+
+```python
+def add_markets(self, markets: List[ConnectorBase]):
+    """
+    Adds market connectors to the strategy and registers event listeners.
+    """
+```
+
+<ParamField path="markets" type="List[ConnectorBase]">
+  List of connector instances to add to the strategy.
+</ParamField>
+
+### remove_markets
+
+```python
+def remove_markets(self, markets: List[ConnectorBase]):
+    """
+    Removes market connectors from the strategy and unregisters event listeners.
+    """
+```
+
+<ParamField path="markets" type="List[ConnectorBase]">
+  List of connector instances to remove from the strategy.
+</ParamField>
+
+## Order Execution
+
+### buy_with_specific_market
+
+```python
+def buy_with_specific_market(
+    self,
+    market_trading_pair_tuple: MarketTradingPairTuple,
+    amount: Decimal,
+    order_type: OrderType = OrderType.MARKET,
+    price: Decimal = s_decimal_nan,
+    expiration_seconds: float = NaN,
+    position_action: PositionAction = PositionAction.OPEN
+) -> str:
+```
+
+<ParamField path="market_trading_pair_tuple" type="MarketTradingPairTuple">
+  The market and trading pair to execute the buy order on.
+</ParamField>
+
+<ParamField path="amount" type="Decimal">
+  The amount in base token value to buy.
+</ParamField>
+
+<ParamField path="order_type" type="OrderType" default="OrderType.MARKET">
+  The type of order (MARKET or LIMIT).
+</ParamField>
+
+<ParamField path="price" type="Decimal" default="NaN">
+  The price for limit orders.
+</ParamField>
+
+<ParamField path="expiration_seconds" type="float" default="NaN">
+  Time in seconds until the order expires.
+</ParamField>
+
+<ParamField path="position_action" type="PositionAction" default="PositionAction.OPEN">
+  Whether to OPEN or CLOSE a position (for derivatives).
+</ParamField>
+
+<ResponseField name="return" type="str">
+  The order ID of the created buy order.
+</ResponseField>
+
+### sell_with_specific_market
+
+```python
+def sell_with_specific_market(
+    self,
+    market_trading_pair_tuple: MarketTradingPairTuple,
+    amount: Decimal,
+    order_type: OrderType = OrderType.MARKET,
+    price: Decimal = s_decimal_nan,
+    expiration_seconds: float = NaN,
+    position_action: PositionAction = PositionAction.OPEN
+) -> str:
+```
+
+Same parameters as `buy_with_specific_market`, but executes a sell order.
+
+<ResponseField name="return" type="str">
+  The order ID of the created sell order.
+</ResponseField>
+
+### cancel_order
+
+```python
+def cancel_order(
+    self,
+    market_trading_pair_tuple: MarketTradingPairTuple,
+    order_id: str
+):
+```
+
+<ParamField path="market_trading_pair_tuple" type="MarketTradingPairTuple">
+  The market and trading pair of the order to cancel.
+</ParamField>
+
+<ParamField path="order_id" type="str">
+  The internal order ID (client_order_id) to cancel.
+</ParamField>
+
+## Order Tracking
+
+### start_tracking_limit_order
+
+```python
+def start_tracking_limit_order(
+    self,
+    market_pair: MarketTradingPairTuple,
+    order_id: str,
+    is_buy: bool,
+    price: Decimal,
+    quantity: Decimal
+):
+```
+
+Begins tracking a limit order in the order tracker.
+
+### stop_tracking_limit_order
+
+```python
+def stop_tracking_limit_order(
+    self,
+    market_pair: MarketTradingPairTuple,
+    order_id: str
+):
+```
+
+Stops tracking a limit order in the order tracker.
+
+### start_tracking_market_order
+
+```python
+def start_tracking_market_order(
+    self,
+    market_pair: MarketTradingPairTuple,
+    order_id: str,
+    is_buy: bool,
+    quantity: Decimal
+):
+```
+
+Begins tracking a market order in the order tracker.
+
+### stop_tracking_market_order
+
+```python
+def stop_tracking_market_order(
+    self,
+    market_pair: MarketTradingPairTuple,
+    order_id: str
+):
+```
+
+Stops tracking a market order in the order tracker.
+
+## Event Handlers
+
+These methods are called automatically when market events occur. Override them in your strategy to implement custom logic.
+
+### c_did_create_buy_order
+
+```python
+cdef c_did_create_buy_order(self, object order_created_event):
+    """
+    Called when a buy order is successfully created on the exchange.
+    """
+    pass
+```
+
+### c_did_create_sell_order
+
+```python
+cdef c_did_create_sell_order(self, object order_created_event):
+    """
+    Called when a sell order is successfully created on the exchange.
+    """
+    pass
+```
+
+### c_did_fill_order
+
+```python
+cdef c_did_fill_order(self, object order_filled_event):
+    """
+    Called when an order is filled (partially or completely).
+    """
+    pass
+```
+
+### c_did_fail_order
+
+```python
+cdef c_did_fail_order(self, object order_failed_event):
+    """
+    Called when an order fails.
+    """
+    pass
+```
+
+### c_did_cancel_order
+
+```python
+cdef c_did_cancel_order(self, object cancelled_event):
+    """
+    Called when an order is cancelled.
+    """
+    pass
+```
+
+### c_did_complete_buy_order
+
+```python
+cdef c_did_complete_buy_order(self, object order_completed_event):
+    """
+    Called when a buy order is fully completed.
+    """
+    pass
+```
+
+### c_did_complete_sell_order
+
+```python
+cdef c_did_complete_sell_order(self, object order_completed_event):
+    """
+    Called when a sell order is fully completed.
+    """
+    pass
+```
+
+## Lifecycle Methods
+
+### c_start
+
+```python
+cdef c_start(self, Clock clock, double timestamp):
+    """
+    Called when the strategy starts. Initializes the clock and order tracker.
+    """
+```
+
+### c_tick
+
+```python
+cdef c_tick(self, double timestamp):
+    """
+    Called on every clock tick (default: 1 second).
+    """
+```
+
+### c_stop
+
+```python
+cdef c_stop(self, Clock clock):
+    """
+    Called when the strategy stops. Cleans up resources and removes markets.
+    """
+```
+
+## Utility Methods
+
+### market_status_data_frame
+
+```python
+def market_status_data_frame(
+    self,
+    market_trading_pair_tuples: List[MarketTradingPairTuple]
+) -> pd.DataFrame:
+```
+
+Returns a DataFrame with current market prices (bid, ask, mid) for the given trading pairs.
+
+### wallet_balance_data_frame
+
+```python
+def wallet_balance_data_frame(
+    self,
+    market_trading_pair_tuples: List[MarketTradingPairTuple]
+) -> pd.DataFrame:
+```
+
+Returns a DataFrame showing total and available balances for assets in the trading pairs.
+
+### balance_warning
+
+```python
+def balance_warning(
+    self,
+    market_trading_pair_tuples: List[MarketTradingPairTuple]
+) -> List[str]:
+```
+
+Returns a list of warning messages if asset balances are too low to place orders.
+
+### notify_hb_app
+
+```python
+def notify_hb_app(self, msg: str):
+    """
+    Displays a message on the Hummingbot Output Panel (upper left).
+    """
+```
+
+<ParamField path="msg" type="str">
+  The message to display to the user.
+</ParamField>
+
+### log_with_clock
+
+```python
+def log_with_clock(self, log_level: int, msg: str, **kwargs):
+    """
+    Logs a message with the current clock timestamp.
+    """
+```
+
+<ParamField path="log_level" type="int">
+  The logging level (e.g., logging.INFO, logging.WARNING).
+</ParamField>
+
+<ParamField path="msg" type="str">
+  The message to log.
+</ParamField>
+
+## Usage Example
+
+```python
+from hummingbot.strategy.strategy_base import StrategyBase
+from decimal import Decimal
+from hummingbot.core.data_type.common import OrderType
+
+class MyCustomStrategy(StrategyBase):
+    @classmethod
+    def logger(cls):
+        # Implement logger
+        pass
+        
+    def init_params(self, exchange, trading_pair, order_amount):
+        self._exchange = exchange
+        self._trading_pair = trading_pair
+        self._order_amount = order_amount
+        
+    def format_status(self):
+        # Return status information
+        return "Strategy Status"
+        
+    cdef c_tick(self, double timestamp):
+        # Called every second - implement your strategy logic here
+        StrategyBase.c_tick(self, timestamp)
+        
+        # Example: place a buy order
+        market_pair = self.market_trading_pair_tuples[0]
+        order_id = self.buy_with_specific_market(
+            market_pair,
+            Decimal("0.1"),
+            OrderType.LIMIT,
+            Decimal("50000")
+        )
+        
+    cdef c_did_fill_order(self, object order_filled_event):
+        # Handle order fills
+        self.logger().info(f"Order filled: {order_filled_event.order_id}")
+```
+
+## Event Constants
+
+The following event tags are available for registering custom listeners:
+
+- `BUY_ORDER_COMPLETED_EVENT_TAG`
+- `SELL_ORDER_COMPLETED_EVENT_TAG`
+- `ORDER_FILLED_EVENT_TAG`
+- `ORDER_CANCELED_EVENT_TAG`
+- `ORDER_EXPIRED_EVENT_TAG`
+- `ORDER_FAILURE_EVENT_TAG`
+- `BUY_ORDER_CREATED_EVENT_TAG`
+- `SELL_ORDER_CREATED_EVENT_TAG`
+- `FUNDING_PAYMENT_COMPLETED_EVENT_TAG`
+- `POSITION_MODE_CHANGE_SUCCEEDED_EVENT_TAG`
+- `POSITION_MODE_CHANGE_FAILED_EVENT_TAG`

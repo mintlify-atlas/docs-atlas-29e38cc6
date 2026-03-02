@@ -1,0 +1,362 @@
+---
+title: history
+description: View trade history and performance analytics for your trading strategies
+---
+
+## Overview
+
+The `history` command displays past trades and calculates performance metrics including profit/loss, returns, and trading statistics. It provides detailed analytics on your bot's trading performance.
+
+## Basic Usage
+
+### View History for Current Session
+
+```bash
+history
+```
+
+Displays all trades since the strategy was last imported or started.
+
+**Example output:**
+```
+Start Time: 2024-03-02 10:00:00
+Current Time: 2024-03-02 14:30:00
+Duration: 4:30:00
+
+binance / BTC-USDT
+
+  Trades:
+                              buy    sell   total
+    Number of trades           24      22      46
+    Total trade volume (BTC)   0.12   0.11   0.23
+    Total trade volume (USDT)  6000   5800  11800
+    Avg price                 50000  52727  51087
+
+  Assets:
+                      start  current   change
+    BTC               1.000    1.010    0.010
+    USDT          50000.00 49500.00  -500.00
+    BTC-USDT price   50000    52000     2000
+    Base asset %     50.0%    51.2%    1.2%
+
+  Performance:
+    Hold portfolio value     102000 USDT
+    Current portfolio value  102520 USDT
+    Trade P&L                   520 USDT
+    Fees paid                    15 USDT
+    Total P&L                   505 USDT
+    Return %                   0.50%
+```
+
+## Command Options
+
+### Filter by Time Period
+
+```bash
+history --days [NUMBER]
+```
+
+<ParamField path="days" type="float">
+  Number of days of history to display (supports decimals)
+</ParamField>
+
+**Examples:**
+```bash
+# Last 7 days
+history --days 7
+
+# Last 24 hours
+history --days 1
+
+# Last 12 hours
+history --days 0.5
+```
+
+### Verbose Mode (Show Trade List)
+
+```bash
+history --verbose
+```
+
+Shows detailed list of individual trades in addition to summary.
+
+**Additional output:**
+```
+  Recent trades:
+    Timestamp            Market  Symbol    Type  Price   Amount    Trade Fee
+    2024-03-02 14:25:12  binance BTC-USDT  sell  52100   0.005     0.065 USDT
+    2024-03-02 14:20:45  binance BTC-USDT  buy   52000   0.005     0.065 USDT
+    2024-03-02 14:15:33  binance BTC-USDT  sell  51900   0.005     0.065 USDT
+    ...
+```
+
+<Info>
+Verbose mode shows up to the most recent 100 trades by default (configurable via `MAXIMUM_TRADE_FILLS_DISPLAY_OUTPUT`).
+</Info>
+
+### Set Display Precision
+
+```bash
+history --precision [NUMBER]
+```
+
+<ParamField path="precision" type="integer">
+  Number of decimal places to display for numeric values
+</ParamField>
+
+**Examples:**
+```bash
+# High precision (8 decimals)
+history --precision 8
+
+# Low precision (2 decimals)  
+history --precision 2
+```
+
+### Combining Options
+
+```bash
+history --days 7 --verbose --precision 4
+```
+
+## Performance Metrics Explained
+
+### Trading Statistics
+
+<ResponseField name="Number of trades" type="integer">
+  Total count of completed trades (split by buy/sell/total)
+</ResponseField>
+
+<ResponseField name="Total trade volume" type="decimal">
+  Sum of all trade amounts in base and quote currency
+</ResponseField>
+
+<ResponseField name="Avg price" type="decimal">
+  Volume-weighted average price of trades
+</ResponseField>
+
+### Asset Changes
+
+<ResponseField name="start" type="decimal">
+  Asset balance when the strategy started
+</ResponseField>
+
+<ResponseField name="current" type="decimal">
+  Current asset balance
+</ResponseField>
+
+<ResponseField name="change" type="decimal">
+  Difference between current and start balances
+</ResponseField>
+
+<ResponseField name="Base asset %" type="percentage">
+  Percentage of portfolio value held in base asset
+</ResponseField>
+
+### Performance Calculations
+
+<ResponseField name="Hold portfolio value" type="decimal">
+  What your portfolio would be worth if you hadn't traded (holding initial assets at current prices)
+</ResponseField>
+
+<ResponseField name="Current portfolio value" type="decimal">
+  Actual current value of your portfolio at current prices
+</ResponseField>
+
+<ResponseField name="Trade P&L" type="decimal">
+  Profit/loss from trading activity (current value - hold value)
+</ResponseField>
+
+<ResponseField name="Fees paid" type="decimal">
+  Total trading fees paid (broken down by token)
+</ResponseField>
+
+<ResponseField name="Total P&L" type="decimal">
+  Net profit/loss after deducting fees
+</ResponseField>
+
+<ResponseField name="Return %" type="percentage">
+  Total P&L as a percentage of initial portfolio value
+</ResponseField>
+
+## Multi-Market Strategies
+
+For strategies trading multiple markets or pairs:
+
+```bash
+history
+```
+
+**Output shows each market separately:**
+```
+binance / BTC-USDT
+  Trades: ...
+  Performance: Return % = 0.50%
+
+binance / ETH-USDT  
+  Trades: ...
+  Performance: Return % = 0.75%
+
+Averaged Return = 0.625%
+```
+
+## Smart Rounding
+
+The history command uses intelligent rounding:
+
+- Large values: Rounded to whole numbers (e.g., 50000)
+- Medium values: 2-4 decimal places (e.g., 0.1234)
+- Small values: More decimals as needed (e.g., 0.00001234)
+- Percentages: Always 2 decimal places (e.g., 0.50%)
+
+Override with `--precision` flag for consistent decimals.
+
+## Implementation Details
+
+The history command is implemented in `/hummingbot/client/command/history_command.py:29` and provides:
+
+- **Database-backed trade storage**: Trades stored in SQLite
+- **Performance calculation engine**: Calculates P&L, returns, fees
+- **Multi-market support**: Aggregates data across exchanges and pairs
+- **Rate oracle integration**: Converts assets for portfolio valuation
+- **Async balance fetching**: Gets current balances for accurate calculations
+
+## Use Cases
+
+### Daily Performance Review
+
+Check today's performance:
+
+```bash
+history --days 1 --verbose
+```
+
+### Weekly Analysis
+
+Review the past week:
+
+```bash
+history --days 7
+```
+
+### Detailed Trade Audit
+
+Examine all trades with full precision:
+
+```bash
+history --verbose --precision 8
+```
+
+### Quick P&L Check
+
+Just see the summary:
+
+```bash
+history
+```
+
+## Exporting History
+
+While the CLI shows formatted output, you can access raw data:
+
+```bash
+export
+```
+
+This exports trades to CSV format for analysis in Excel or other tools.
+
+## Understanding Returns
+
+### Return % Calculation
+
+```
+Return % = (Total P&L / Initial Portfolio Value) × 100
+```
+
+**Example:**
+- Initial portfolio: 100,000 USDT
+- Total P&L: 500 USDT  
+- Return %: (500 / 100,000) × 100 = 0.50%
+
+### Hold vs Trade Value
+
+**Hold Value:**
+- What you'd have if you didn't trade
+- Calculated using initial balances at current prices
+
+**Current Value:**
+- Actual current portfolio value
+- Reflects all trading activity
+
+**Trade P&L:**
+- Difference between current and hold
+- Shows if trading added value vs. holding
+
+<Tip>
+A positive Trade P&L means your bot's trading added value compared to simply holding the assets.
+</Tip>
+
+## Troubleshooting
+
+### "No past trades to report"
+
+If you see this message:
+
+1. Ensure a strategy has been imported/created
+2. Verify trades have been executed
+3. Check the time period (try removing `--days` filter)
+4. Confirm the strategy file matches
+
+### Network Errors
+
+If balance fetching fails:
+
+```
+A network error prevented the balances retrieval to complete.
+```
+
+**Solutions:**
+1. Check internet connection
+2. Verify exchange is online
+3. Increase timeout:
+   ```bash
+   config other_commands_timeout 60
+   ```
+
+### Inaccurate Returns
+
+If returns seem incorrect:
+
+1. **Check initial balances**: Ensure the bot started with correct balances
+2. **Account for manual trades**: Trades made outside the bot aren't tracked
+3. **Verify fees**: Ensure exchange fee tiers are correct
+4. **Oracle rates**: Confirm rate oracle is providing accurate conversions
+
+### Missing Trades
+
+If some trades don't appear:
+
+1. Verify the trades were filled (check exchange)
+2. Ensure the strategy file name matches
+3. Check if trades are outside the time filter
+4. Confirm database isn't corrupted
+
+## Database Location
+
+Trades are stored in:
+```
+data/hummingbot_trades.sqlite
+```
+
+This database persists across bot restarts and contains the complete trade history.
+
+<Warning>
+Deleting or corrupting this database will result in loss of historical data. Back it up regularly if you need to preserve trade history.
+</Warning>
+
+## Related Commands
+
+- [status](/cli/status) - View real-time performance
+- [balance](/cli/balance) - Check current balances
+- [export](/cli/export) - Export history to CSV
+- [pnl](/cli/pnl) - Alternative P&L calculation (coming soon)

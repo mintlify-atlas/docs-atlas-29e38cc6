@@ -1,0 +1,311 @@
+---
+title: connect
+description: Connect to cryptocurrency exchanges by configuring API credentials
+---
+
+## Overview
+
+The `connect` command allows you to add and manage connections to cryptocurrency exchanges. It securely stores your API credentials and validates the connection before saving.
+
+## Basic Usage
+
+### View Connections
+
+```bash
+connect
+```
+
+Displays a table showing:
+- All available exchanges
+- Whether API keys have been added
+- Whether the connection is confirmed (validated)
+
+**Example output:**
+```
+Testing connections, please wait...
+
+    Exchange          Keys Added    Keys Confirmed
+    binance                 Yes               Yes
+    coinbase_pro            Yes               Yes
+    kucoin                  Yes                No
+    kraken                   No                No
+
+Failed connections:
+    kucoin: Invalid API key or secret
+```
+
+### Connect to Exchange
+
+```bash
+connect [exchange_name]
+```
+
+<ParamField path="exchange_name" type="string" required>
+  Name of the exchange to connect (e.g., `binance`, `kucoin`, `coinbase_pro`)
+</ParamField>
+
+**Example:**
+```bash
+connect binance
+```
+
+This will:
+1. Prompt for required API credentials
+2. Validate the credentials by testing the connection
+3. Save the credentials securely if validation succeeds
+
+## Connection Workflow
+
+<Steps>
+  <Step title="Enter Exchange Name">
+    ```bash
+    connect binance
+    ```
+  </Step>
+  
+  <Step title="Enter API Credentials">
+    You'll be prompted for exchange-specific credentials:
+    ```
+    Enter your Binance API key >>>
+    Enter your Binance secret key >>> (hidden)
+    ```
+  </Step>
+  
+  <Step title="Connection Validation">
+    Hummingbot tests the connection:
+    ```
+    Testing connection to binance...
+    ```
+  </Step>
+  
+  <Step title="Confirmation">
+    If successful:
+    ```
+    You are now connected to binance.
+    ```
+  </Step>
+</Steps>
+
+## Replacing Existing Connections
+
+If you already have credentials saved for an exchange:
+
+```bash
+connect binance
+# Prompt: "Would you like to replace your existing binance API key abc123... (Yes/No)? >>>"
+```
+
+Respond with `Yes` or `Y` to update the credentials, or `No` to keep existing ones.
+
+## Exchange-Specific Notes
+
+### Kraken
+
+<Warning>
+When connecting to Kraken, ensure your API Key Nonce Window is set to at least 10 in your Kraken account settings.
+</Warning>
+
+```bash
+connect kraken
+# Reminder: Please ensure your Kraken API Key Nonce Window is at least 10.
+```
+
+### Gateway Connectors (DEX)
+
+For decentralized exchanges that use Gateway:
+
+```bash
+# Gateway connectors use different command
+gateway connect [chain] [network] [wallet_address]
+```
+
+If you try to use `connect` for a Gateway connector:
+```bash
+connect uniswap
+# Error: This is a gateway connector. Use `gateway connect` command instead.
+```
+
+## API Credential Requirements
+
+Different exchanges require different credentials:
+
+### Standard (API Key + Secret)
+- Binance
+- KuCoin
+- OKX
+- Bybit
+
+### Additional Parameters
+Some exchanges require extra credentials:
+
+**Coinbase Pro**
+- API Key
+- Secret Key  
+- Passphrase
+
+**KuCoin**
+- API Key
+- Secret Key
+- Passphrase
+
+**Bitfinex**
+- API Key
+- Secret Key
+
+## Security Features
+
+### Encrypted Storage
+
+All API credentials are:
+- Encrypted using your Hummingbot password
+- Stored in the `conf/connectors/` directory
+- Hidden during input (for secret keys and passphrases)
+
+### Password Protection
+
+Your credentials are encrypted with the password you set when first launching Hummingbot. This password is required to:
+- Decrypt credentials on startup
+- Access any secure configuration values
+
+### Connection Validation
+
+Before saving credentials, Hummingbot:
+1. Tests the API connection
+2. Verifies permissions
+3. Checks if the keys are valid
+
+If validation fails, credentials are **not** saved.
+
+## Implementation Details
+
+The connect command is implemented in `/hummingbot/client/command/connect_command.py:22` and provides:
+
+- **Async validation** with configurable timeout (default 30s)
+- **Secure credential prompting** (passwords hidden)
+- **Automatic reconnection** during validation
+- **Gateway connector detection** to route to appropriate command
+- **Connector config file management**
+
+## Supported Exchanges
+
+Centralized exchanges (CEX) that support the `connect` command:
+
+- Binance
+- Binance US  
+- Coinbase Pro / Advanced Trade
+- KuCoin
+- Kraken
+- OKX
+- Bybit
+- Gate.io
+- AscendEX
+- Bitfinex
+- Bittrex
+- And many more...
+
+For a complete list:
+```bash
+connect
+# View the full list of exchanges in the connection table
+```
+
+## Common Use Cases
+
+### Initial Setup
+
+Connect to your primary exchange:
+
+```bash
+connect binance
+# Enter credentials when prompted
+```
+
+### Multi-Exchange Arbitrage
+
+Connect to multiple exchanges:
+
+```bash
+connect binance
+connect kucoin
+connect okx
+
+# Verify all connections
+connect
+```
+
+### Updating Credentials
+
+Rotate API keys for security:
+
+```bash
+connect binance
+# Select "Yes" to replace existing keys
+# Enter new API credentials
+```
+
+## Troubleshooting
+
+### Connection Failed
+
+If connection validation fails:
+
+1. **Verify API credentials**
+   - Double-check API key and secret
+   - Ensure no extra spaces when copying
+
+2. **Check API permissions**
+   - Most strategies need: Read, Trade
+   - Some exchanges require: Read, Trade, Withdraw (for balance checks)
+
+3. **IP Restrictions**
+   - Remove IP whitelist restrictions during initial setup
+   - Or add your server's IP to the whitelist
+
+4. **Exchange-specific issues**
+   - Kraken: Check Nonce Window setting
+   - Some exchanges: Verify account is fully verified
+
+### Timeout Errors
+
+If connection times out:
+
+1. Check internet connection
+2. Verify exchange is online (check status page)
+3. Increase timeout:
+   ```bash
+   config other_commands_timeout 60
+   ```
+
+### Invalid API Key Format
+
+Some exchanges have specific API key formats:
+
+- Ensure you're using the correct exchange name
+- Some exchanges have multiple versions (e.g., `binance` vs `binance_us`)
+- Copy keys without line breaks or spaces
+
+## API Key Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Enable Read + Trade Only" icon="shield-check">
+    Disable withdrawal permissions unless absolutely necessary
+  </Card>
+  
+  <Card title="Rotate Regularly" icon="rotate">
+    Change API keys every few months for security
+  </Card>
+  
+  <Card title="Use IP Restrictions" icon="lock">
+    After initial setup, restrict API access to your server's IP
+  </Card>
+  
+  <Card title="Separate Keys per Bot" icon="key">
+    Create different API keys for different bots or strategies
+  </Card>
+</CardGroup>
+
+## Related Commands
+
+- [balance](/cli/balance) - View balances after connecting
+- [status](/cli/status) - Verify connection status
+- [gateway](/cli/gateway) - Connect to DEX via Gateway (coming soon)

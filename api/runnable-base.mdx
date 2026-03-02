@@ -1,0 +1,170 @@
+---
+title: RunnableBase
+description: Base class for smart components in the V2 framework
+---
+
+## Overview
+
+The `RunnableBase` class provides the foundation for all runnable components in the Hummingbot V2 framework, including controllers and executors. It implements a control loop pattern that executes tasks at regular intervals.
+
+## Class Definition
+
+```python
+class RunnableBase(ABC):
+    def __init__(self, update_interval: float = 0.5)
+```
+
+**Location:** `hummingbot/strategy_v2/runnable_base.py:10`
+
+## Parameters
+
+<ParamField path="update_interval" type="float" default="0.5">
+  The interval at which the control loop should be executed, in seconds
+</ParamField>
+
+## Properties
+
+### status
+
+```python
+@property
+def status(self) -> RunnableStatus
+```
+
+Returns the current status of the runnable component.
+
+**Returns:** The current `RunnableStatus` (NOT_STARTED, RUNNING, SHUTTING_DOWN, or TERMINATED)
+
+## Methods
+
+### start()
+
+```python
+def start(self)
+```
+
+Starts the control loop of the smart component. If the component is not already started, it will initialize and begin the control loop.
+
+**Location:** `runnable_base.py:42`
+
+---
+
+### stop()
+
+```python
+def stop(self)
+```
+
+Stops the control loop of the smart component. Sets the status to TERMINATED and triggers the termination event.
+
+**Location:** `runnable_base.py:52`
+
+---
+
+### control_loop()
+
+```python
+async def control_loop(self)
+```
+
+The main control loop of the smart component. This method:
+1. Executes `on_start()` when the loop begins
+2. Continuously executes `control_task()` at the specified interval
+3. Calls `on_stop()` when the loop terminates
+
+**Location:** `runnable_base.py:61`
+
+---
+
+### on_start()
+
+```python
+async def on_start(self)
+```
+
+Method executed when the control loop is started. Should be overridden in subclasses to provide specific initialization behavior.
+
+**Location:** `runnable_base.py:83`
+
+---
+
+### on_stop()
+
+```python
+def on_stop(self)
+```
+
+Method executed when the control loop is stopped. Should be overridden in subclasses to provide specific cleanup behavior.
+
+**Location:** `runnable_base.py:76`
+
+---
+
+### control_task()
+
+```python
+async def control_task(self)
+```
+
+The main task to be executed in the control loop. Must be overridden in subclasses to provide specific behavior.
+
+**Location:** `runnable_base.py:90`
+
+## RunnableStatus Enum
+
+The `RunnableStatus` enum defines the possible states of a runnable component:
+
+<ResponseField name="NOT_STARTED" type="int" value="1">
+  Component has been created but not started
+</ResponseField>
+
+<ResponseField name="RUNNING" type="int" value="2">
+  Component is actively running
+</ResponseField>
+
+<ResponseField name="SHUTTING_DOWN" type="int" value="3">
+  Component is in the process of shutting down
+</ResponseField>
+
+<ResponseField name="TERMINATED" type="int" value="4">
+  Component has been stopped and terminated
+</ResponseField>
+
+## Usage Example
+
+```python
+from hummingbot.strategy_v2.runnable_base import RunnableBase
+from hummingbot.strategy_v2.models.base import RunnableStatus
+
+class MyComponent(RunnableBase):
+    def __init__(self):
+        super().__init__(update_interval=1.0)  # Execute every second
+    
+    async def on_start(self):
+        self.logger().info("Component starting...")
+    
+    async def control_task(self):
+        # Your logic here
+        self.logger().info("Executing task...")
+    
+    def on_stop(self):
+        self.logger().info("Component stopped")
+
+# Create and start component
+component = MyComponent()
+component.start()
+
+# Check status
+if component.status == RunnableStatus.RUNNING:
+    print("Component is running")
+
+# Stop component
+component.stop()
+```
+
+## Notes
+
+- The `RunnableBase` class is abstract and should not be instantiated directly
+- Subclasses must implement the `control_task()` method
+- The control loop handles exceptions and continues running even if a task fails
+- The `update_interval` determines how frequently the control task executes

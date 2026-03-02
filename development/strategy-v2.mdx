@@ -1,0 +1,352 @@
+---
+title: Strategy V2 Framework
+description: Deep dive into Hummingbot's modular V2 strategy architecture
+---
+
+## Overview
+
+The Strategy V2 framework is Hummingbot's modern architecture for building sophisticated trading strategies. It separates concerns into reusable components, making strategies easier to develop, test, and maintain.
+
+## Architecture
+
+### Core Components
+
+<CardGroup cols={3}>
+  <Card title="StrategyV2Base" icon="layer-group">
+    Main strategy orchestrator
+  </Card>
+  <Card title="Controllers" icon="gamepad">
+    Strategy logic and signals
+  </Card>
+  <Card title="Executors" icon="play">
+    Order execution engine
+  </Card>
+</CardGroup>
+
+## RunnableBase Class
+
+The foundation of all V2 components. Located in `strategy_v2/runnable_base.py:10`, it provides lifecycle management and async control loops.
+
+### Key Features
+
+```python
+class RunnableBase(ABC):
+    def __init__(self, update_interval: float = 0.5):
+        self.update_interval = update_interval
+        self._status: RunnableStatus = RunnableStatus.NOT_STARTED
+        self.terminated = asyncio.Event()
+```
+
+**Status States:**
+- `NOT_STARTED` - Initial state before `start()` is called
+- `RUNNING` - Active and executing control loop
+- `TERMINATED` - Stopped, no longer processing
+
+### Lifecycle Methods
+
+<CodeGroup>
+```python start()
+def start(self):
+    """Start the control loop"""
+    if self._status == RunnableStatus.NOT_STARTED:
+        self.terminated.clear()
+        self._status = RunnableStatus.RUNNING
+        safe_ensure_future(self.control_loop())
+```
+
+```python stop()
+def stop(self):
+    """Stop the control loop"""
+    if self._status != RunnableStatus.TERMINATED:
+        self._status = RunnableStatus.TERMINATED
+        self.terminated.set()
+```
+
+```python control_loop()
+async def control_loop(self):
+    """Main execution loop"""
+    await self.on_start()
+    while not self.terminated.is_set():
+        try:
+            await self.control_task()
+        except Exception as e:
+            self.logger().error(e, exc_info=True)
+        finally:
+            await asyncio.sleep(self.update_interval)
+    self.on_stop()
+```
+</CodeGroup>
+
+### Override Methods
+
+Subclasses implement these methods to customize behavior:
+
+- **`async on_start()`** - Called once when component starts (e.g., validate balances)
+- **`on_stop()`** - Called once when component stops (e.g., cleanup)
+- **`async control_task()`** - Called every `update_interval` seconds (main logic)
+
+## StrategyV2Base
+
+The main strategy class that orchestrates controllers and executors.
+
+### Creating a Strategy
+
+<Steps>
+  <Step title="Define Configuration">
+    Create a Pydantic config model:
+    
+    ```python
+    class MyStrategyConfig(StrategyV2ConfigBase):
+        script_file_name: str = os.path.basename(__file__)
+        controllers_config: List[str] = ["conf_1.yml"]
+        
+        def update_markets(self, markets: MarketDict) -> MarketDict:
+            # Define which exchanges/pairs to connect to
+            return markets
+    ```
+  </Step>
+  
+  <Step title="Implement Strategy Class">
+    Extend `StrategyV2Base` and implement core methods:
+    
+    ```python
+    class MyStrategy(StrategyV2Base):
+        def __init__(self, connectors: Dict[str, ConnectorBase], config: MyStrategyConfig):
+            super().__init__(connectors, config)
+            self.config = config
+        
+        def on_tick(self):
+            # Called every clock tick (typically 1 second)
+            super().on_tick()
+            # Custom logic here
+    ```
+  </Step>
+  
+  <Step title="Handle Actions">
+    Process controller actions (optional for controller-based strategies):
+    
+    ```python
+    def create_actions_proposal(self) -> List[CreateExecutorAction]:
+        # Controllers generate actions, strategy can filter/modify
+        return []
+    
+    def stop_actions_proposal(self) -> List[StopExecutorAction]:
+        # Determine which executors to stop
+        return []
+    ```
+  </Step>
+</Steps>
+
+### Key Methods
+
+| Method | Description | When to Use |
+|--------|-------------|-------------|
+| `on_tick()` | Called every second | Main strategy loop, check conditions |
+| `on_start()` | Called once at startup | Initialize data, validate config |
+| `on_stop()` | Called once at shutdown | Cleanup, close positions |
+| `create_actions_proposal()` | Generate executor actions | Filter/modify controller actions |
+| `stop_actions_proposal()` | Stop executors | Implement stop loss, take profit |
+
+## Working with Controllers
+
+Strategies can leverage multiple controllers for complex trading logic.
+
+### Example: Multi-Controller Strategy
+
+From `scripts/v2_with_controllers.py:1`:
+
+```python
+class V2WithControllers(StrategyV2Base):
+    def __init__(self, connectors: Dict[str, ConnectorBase], config: V2WithControllersConfig):
+        super().__init__(connectors, config)
+        self.config = config
+        self.max_pnl_by_controller = {}
+    
+    def on_tick(self):
+        super().on_tick()
+        if not self._is_stop_triggered:
+            self.check_manual_kill_switch()
+            self.control_max_drawdown()
+    
+    def control_max_drawdown(self):
+        """Monitor and stop controllers exceeding drawdown limits"""
+        for controller_id, controller in self.controllers.items():
+            if controller.status != RunnableStatus.RUNNING:
+                continue
+            controller_pnl = self.get_performance_report(controller_id).global_pnl_quote
+            # Check drawdown and stop if exceeded
+```
+
+<Info>
+See the full example at `scripts/v2_with_controllers.py` for advanced features like drawdown control, manual kill switches, and performance reporting.
+</Info>
+
+## Working with Executors
+
+Strategies interact with executors through the `ExecutorOrchestrator`.
+
+### Creating Executors
+
+```python
+from hummingbot.strategy_v2.models.executor_actions import CreateExecutorAction
+
+action = CreateExecutorAction(
+    controller_id="my_controller",
+    executor_config=PositionExecutorConfig(
+        timestamp=self.current_timestamp,
+        trading_pair="ETH-USDT",
+        connector_name="binance",
+        side=TradeType.BUY,
+        amount=Decimal("0.1"),
+        # ... more config
+    )
+)
+
+self.executor_orchestrator.execute_actions([action])
+```
+
+### Querying Executors
+
+```python
+# Get all executors
+all_executors = self.get_all_executors()
+
+# Get executors for specific controller
+controller_executors = self.get_executors_by_controller("controller_id")
+
+# Filter executors
+active_executors = self.filter_executors(
+    executors=all_executors,
+    filter_func=lambda e: e.is_active
+)
+```
+
+### Performance Tracking
+
+```python
+# Get performance report for a controller
+report = self.get_performance_report("controller_id")
+
+print(f"Global PnL: {report.global_pnl_quote}")
+print(f"Total executors: {report.total_executors}")
+print(f"Realized PnL: {report.realized_pnl_quote}")
+```
+
+## Configuration System
+
+V2 strategies use Pydantic for type-safe, validated configuration.
+
+### Config Features
+
+<CodeGroup>
+```python Basic Config
+class MyConfig(StrategyV2ConfigBase):
+    script_file_name: str = os.path.basename(__file__)
+    exchange: str = Field("binance_paper_trade")
+    trading_pair: str = Field("ETH-USDT")
+    order_amount: Decimal = Field(Decimal("0.01"))
+```
+
+```python With Validation
+from pydantic import field_validator
+
+class MyConfig(StrategyV2ConfigBase):
+    spreads: List[Decimal] = Field(default="0.01,0.02,0.03")
+    
+    @field_validator('spreads', mode="before")
+    @classmethod
+    def parse_spreads(cls, v):
+        if isinstance(v, str):
+            return [Decimal(x) for x in v.split(",")]
+        return v
+```
+
+```python With Prompts
+class MyConfig(StrategyV2ConfigBase):
+    total_amount: Decimal = Field(
+        default=Decimal("100"),
+        json_schema_extra={
+            "prompt": "Enter total amount to trade: ",
+            "prompt_on_new": True
+        }
+    )
+```
+</CodeGroup>
+
+## Event Handling
+
+Respond to market events in your strategy:
+
+```python
+class MyStrategy(StrategyV2Base):
+    def did_fill_order(self, event: OrderFilledEvent):
+        """Called when an order fills"""
+        msg = f"{event.trade_type.name} {event.amount} {event.trading_pair} at {event.price}"
+        self.logger().info(msg)
+    
+    def did_fail_order(self, event: MarketOrderFailureEvent):
+        """Called when an order fails"""
+        self.logger().error(f"Order failed: {event.error_message}")
+    
+    def did_cancel_order(self, event: OrderCancelledEvent):
+        """Called when an order is cancelled"""
+        self.logger().info(f"Order cancelled: {event.order_id}")
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Separate Concerns">
+    Use controllers for strategy logic and executors for order management. Don't mix concerns.
+  </Accordion>
+  
+  <Accordion title="Handle Errors Gracefully">
+    The control loop catches exceptions but log them properly for debugging:
+    ```python
+    try:
+        await self.risky_operation()
+    except Exception as e:
+        self.logger().error(f"Operation failed: {e}", exc_info=True)
+    ```
+  </Accordion>
+  
+  <Accordion title="Use Async Properly">
+    The control loop is async. Use `await` for I/O operations:
+    ```python
+    async def control_task(self):
+        await self.validate_balance()  # Good
+        self.calculate_signals()        # OK for CPU-bound
+    ```
+  </Accordion>
+  
+  <Accordion title="Monitor Performance">
+    Regularly check executor and controller performance to detect issues early.
+  </Accordion>
+</AccordionGroup>
+
+## Examples
+
+### Simple Script-Based Strategy
+
+See `scripts/simple_pmm.py:1` for a complete example of a pure market-making strategy.
+
+### Controller-Based Strategy
+
+See `scripts/v2_with_controllers.py:1` for advanced features like multiple controllers, drawdown management, and cash-out logic.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Controllers" icon="gamepad" href="/development/controllers">
+    Learn to build strategy controllers
+  </Card>
+  <Card title="Executors" icon="play" href="/development/executors">
+    Understand order execution patterns
+  </Card>
+  <Card title="Backtesting" icon="chart-line" href="/development/backtesting">
+    Test strategies with historical data
+  </Card>
+  <Card title="Custom Scripts" icon="code" href="/development/custom-scripts">
+    Build simple strategies quickly
+  </Card>
+</CardGroup>

@@ -1,0 +1,77 @@
+---
+title: Built-in Strategies Overview
+description: Comprehensive guide to Hummingbot's built-in trading strategies
+---
+
+Hummingbot includes several battle-tested trading strategies that you can use out of the box. Each strategy is designed for specific market conditions and trading objectives.
+
+## Available Strategies
+
+<CardGroup cols={2}>
+  <Card title="Pure Market Making" icon="chart-line" href="/strategies/pure-market-making">
+    Provide liquidity on a single exchange by placing orders on both sides of the order book
+  </Card>
+  
+  <Card title="Cross Exchange Market Making" icon="arrow-right-arrow-left" href="/strategies/cross-exchange-market-making">
+    Earn spreads by making markets on one exchange and hedging on another
+  </Card>
+  
+  <Card title="AMM Arbitrage" icon="coins" href="/strategies/amm-arbitrage">
+    Capture price differences between AMM pools and order book exchanges
+  </Card>
+  
+  <Card title="Avellaneda Market Making" icon="brain" href="/strategies/avellaneda-market-making">
+    Advanced market making using the Avellaneda-Stoikov algorithm
+  </Card>
+  
+  <Card title="Perpetual Market Making" icon="infinity" href="/strategies/perpetual-market-making">
+    Market making on perpetual futures markets with leverage
+  </Card>
+  
+  <Card title="Spot Perpetual Arbitrage" icon="scale-balanced" href="/strategies/spot-perpetual-arbitrage">
+    Arbitrage between spot and perpetual markets to profit from funding rates
+  </Card>
+</CardGroup>
+
+## Choosing a Strategy
+
+### For Market Making
+
+- **Pure Market Making**: Best for centralized exchanges with good liquidity
+- **Avellaneda Market Making**: Optimal for volatile markets with advanced risk management
+- **Perpetual Market Making**: For traders comfortable with leverage on derivatives
+
+### For Arbitrage
+
+- **Cross Exchange Market Making**: Profit from price differences between exchanges
+- **AMM Arbitrage**: Exploit inefficiencies between AMMs and centralized exchanges
+- **Spot Perpetual Arbitrage**: Earn from funding rate arbitrage
+
+## Getting Started
+
+To use any built-in strategy:
+
+1. Start Hummingbot
+2. Run `create` command
+3. Select your strategy from the list
+4. Configure the required parameters
+5. Run `start` to begin trading
+
+<Note>
+Each strategy has different risk profiles and capital requirements. Start with small amounts to test before scaling up.
+</Note>
+
+## Strategy Configuration
+
+All strategies are configured through:
+- Interactive prompts during creation
+- Configuration files in `conf/strategies/`
+- Direct editing of YAML files
+
+## Next Steps
+
+Click on any strategy card above to learn more about:
+- How the strategy works
+- When to use it
+- Configuration parameters
+- Example configurations

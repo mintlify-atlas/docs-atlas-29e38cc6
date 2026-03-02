@@ -1,0 +1,412 @@
+---
+title: AMM Arbitrage
+description: Capture arbitrage opportunities between AMM pools and centralized exchanges
+---
+
+## Overview
+
+AMM Arbitrage exploits price differences between Automated Market Maker (AMM) decentralized exchanges and centralized order book exchanges. The strategy simultaneously executes trades on both venues when profitable opportunities arise.
+
+## How It Works
+
+1. **Monitor Prices**: Continuously compares prices between AMM and CEX
+2. **Calculate Profitability**: Accounts for slippage, gas costs, and fees
+3. **Execute Arbitrage**: Simultaneously buys low on one venue and sells high on the other
+4. **Profit from Spread**: Captures the price difference minus all transaction costs
+
+```python
+# From source: hummingbot/strategy/amm_arb/amm_arb.py
+buy_price_adjusted = buy_price * (1 + slippage_buffer)
+sell_price_adjusted = sell_price * (1 - slippage_buffer)
+profit_pct = (sell_price_adjusted - buy_price_adjusted) / buy_price_adjusted
+
+if profit_pct >= min_profitability:
+    execute_arbitrage()
+```
+
+## When to Use
+
+<CardGroup cols={2}>
+  <Card title="Ideal Scenarios" icon="check">
+    - High volume AMM pools with price inefficiencies
+    - Low gas cost networks (BSC, Polygon, Arbitrum)
+    - Volatile markets with frequent mispricings
+    - Sufficient capital to absorb gas costs
+  </Card>
+  
+  <Card title="Avoid When" icon="xmark">
+    - Ethereum mainnet with high gas (>100 gwei)
+    - Low liquidity AMM pools
+    - Pairs with high price impact
+    - Insufficient capital for gas costs
+  </Card>
+</CardGroup>
+
+## Core Configuration Parameters
+
+### Connector Setup
+
+<ParamField path="connector_1" type="string" required>
+  First exchange connector (CEX, AMM, or CLOB)
+  
+  **Examples**: `binance`, `uniswap_polygon`, `pancakeswap`
+</ParamField>
+
+<ParamField path="market_1" type="string" required>
+  Trading pair on first connector in BASE-QUOTE format
+  
+  **Example**: `ETH-USDT`
+</ParamField>
+
+<ParamField path="connector_2" type="string" required>
+  Second exchange connector
+  
+  **Example**: `uniswap_ethereum`, `quickswap`
+</ParamField>
+
+<ParamField path="market_2" type="string" required>
+  Trading pair on second connector
+  
+  **Example**: `WETH-USDC`
+</ParamField>
+
+### Arbitrage Parameters
+
+<ParamField path="order_amount" type="decimal" required>
+  Order size in base asset
+  
+  **Example**: `0.1` for 0.1 ETH per arbitrage
+  
+  <Warning>
+  Consider slippage impact. Larger orders may have worse execution prices on AMMs.
+  </Warning>
+</ParamField>
+
+<ParamField path="min_profitability" type="decimal" default="1.0">
+  Minimum profit percentage required to execute arbitrage. Enter `1` for 1%.
+  
+  **Example**: `0.5` requires 0.5% profit after all costs
+  
+  **Recommended**:
+  - Ethereum mainnet: >= 2%
+  - L2 networks: >= 0.5%
+  - BSC/Polygon: >= 0.3%
+</ParamField>
+
+### Slippage Management
+
+<ParamField path="market_1_slippage_buffer" type="decimal" required>
+  Slippage buffer for connector_1 orders. Enter `1` for 1%.
+  
+  **Default**: `1.0` for AMMs, `0` for CEX
+  
+  **Example**: `2.0` adds 2% buffer to price for slippage
+</ParamField>
+
+<ParamField path="market_2_slippage_buffer" type="decimal" required>
+  Slippage buffer for connector_2 orders. Enter `1` for 1%.
+  
+  Automatically defaults to 1% for AMMs, 0% for CEX.
+</ParamField>
+
+### Execution Mode
+
+<ParamField path="concurrent_orders_submission" type="bool" default="false">
+  Whether to submit both orders simultaneously or sequentially
+  
+  **Options**:
+  - `true`: Submit both orders at once (faster but riskier)
+  - `false`: Wait for first order to fill before submitting second (safer)
+  
+  <Info>
+  Sequential execution reduces risk but may miss opportunities if price moves.
+  </Info>
+</ParamField>
+
+### Asset Conversion
+
+<ParamField path="rate_oracle_enabled" type="bool" default="true">
+  Use Hummingbot's rate oracle for asset conversion
+  
+  Recommended for most use cases.
+</ParamField>
+
+<ParamField path="quote_conversion_rate" type="decimal" default="1.0">
+  Fixed conversion rate between quote assets (when `rate_oracle_enabled=false`)
+  
+  **Example**: `1.0` if both use USDT, or `0.9998` for USDT to USDC
+</ParamField>
+
+### Gas Configuration (for AMMs)
+
+<ParamField path="gas_token" type="string" default="ETH">
+  Symbol of token used to pay gas fees
+  
+  **Examples**: `ETH`, `MATIC`, `BNB`
+</ParamField>
+
+<ParamField path="gas_price" type="decimal" default="2000">
+  Estimated gas cost in quote asset
+  
+  **Example**: `50` for $50 in gas per arbitrage
+  
+  <Note>
+  This is factored into profitability calculations. Update based on network conditions.
+  </Note>
+</ParamField>
+
+## Example Configurations
+
+### CEX to AMM on L2
+
+```yaml
+strategy: amm_arb
+connector_1: binance
+market_1: ETH-USDT
+connector_2: uniswap_polygon
+market_2: WETH-USDC
+order_amount: 0.5
+min_profitability: 0.3
+market_1_slippage_buffer: 0
+market_2_slippage_buffer: 1.5
+concurrent_orders_submission: true
+rate_oracle_enabled: true
+```
+
+This configuration:
+- Arbitrages between Binance and Uniswap on Polygon
+- Uses 0.5 ETH per trade
+- Requires 0.3% minimum profit
+- Submits orders concurrently for speed
+- Low gas costs on Polygon enable smaller spreads
+
+### AMM to AMM on Same Chain
+
+```yaml
+strategy: amm_arb
+connector_1: uniswap_ethereum
+market_1: WETH-USDC
+connector_2: sushiswap_ethereum
+market_2: WETH-USDC
+order_amount: 1.0
+min_profitability: 2.0
+market_1_slippage_buffer: 2.0
+market_2_slippage_buffer: 2.0
+concurrent_orders_submission: true
+rate_oracle_enabled: true
+gas_token: ETH
+gas_price: 100
+```
+
+Key considerations:
+- Higher `min_profitability` for Ethereum gas costs
+- Higher `gas_price` estimate for accurate profit calculation
+- Concurrent submission critical for speed
+
+### BSC Pancakeswap to Binance
+
+```yaml
+strategy: amm_arb
+connector_1: pancakeswap
+market_1: BNB-BUSD
+connector_2: binance
+market_2: BNB-USDT
+order_amount: 5.0
+min_profitability: 0.5
+market_1_slippage_buffer: 1.0
+market_2_slippage_buffer: 0.2
+concurrent_orders_submission: false
+rate_oracle_enabled: false
+quote_conversion_rate: 1.0
+gas_token: BNB
+gas_price: 2
+```
+
+Optimized for BSC:
+- Lower gas costs allow tighter spreads
+- Fixed conversion rate for stablecoins
+- Sequential orders for better control
+
+## Strategy Logic Deep Dive
+
+### Profitability Calculation
+
+The strategy performs comprehensive profitability analysis:
+
+```python
+# Simplified from source code
+def calculate_arbitrage_profitability():
+    # Get prices with slippage
+    buy_price = get_price(connector_1) * (1 + slippage_buffer_1)
+    sell_price = get_price(connector_2) * (1 - slippage_buffer_2)
+    
+    # Calculate raw profit
+    gross_profit = (sell_price - buy_price) * order_amount
+    
+    # Subtract costs
+    trading_fees = (buy_price * fee_1 + sell_price * fee_2) * order_amount
+    gas_cost = gas_price if is_gateway else 0
+    
+    net_profit = gross_profit - trading_fees - gas_cost
+    profit_pct = (net_profit / (buy_price * order_amount)) * 100
+    
+    return profit_pct >= min_profitability
+```
+
+### Order Execution Modes
+
+<Tabs>
+  <Tab title="Concurrent Execution">
+    ```yaml
+    concurrent_orders_submission: true
+    ```
+    
+    **Flow**:
+    1. Submit order to connector_1
+    2. Immediately submit order to connector_2
+    3. Wait for both to fill
+    
+    **Pros**:
+    - Faster execution
+    - Less price risk
+    
+    **Cons**:
+    - Both orders may partially fill
+    - Higher failure risk
+  </Tab>
+  
+  <Tab title="Sequential Execution">
+    ```yaml
+    concurrent_orders_submission: false
+    ```
+    
+    **Flow**:
+    1. Submit order to connector_1
+    2. Wait for complete fill
+    3. Submit order to connector_2
+    4. Wait for complete fill
+    
+    **Pros**:
+    - Guaranteed full fills
+    - Better inventory control
+    
+    **Cons**:
+    - Slower (may miss opportunity)
+    - Higher price movement risk
+  </Tab>
+</Tabs>
+
+## Gas Cost Optimization
+
+<AccordionGroup>
+  <Accordion title="Use L2 Networks">
+    Deploy on Polygon, Arbitrum, or Optimism for 100-1000x lower gas costs:
+    
+    ```yaml
+    connector_2: uniswap_polygon  # vs uniswap_ethereum
+    min_profitability: 0.3        # vs 2.0+ on mainnet
+    ```
+  </Accordion>
+  
+  <Accordion title="Batch Transactions">
+    Some AMMs support batching. Check connector documentation for batching capabilities to reduce gas per trade.
+  </Accordion>
+  
+  <Accordion title="Monitor Gas Prices">
+    Update `gas_price` parameter based on current network conditions:
+    
+    ```bash
+    # Check current gas price
+    config gas_price 150  # Adjust based on network
+    ```
+  </Accordion>
+  
+  <Accordion title="Increase Order Size">
+    Gas cost per trade is fixed, so larger orders improve percentage returns:
+    
+    - 0.1 ETH @ $50 gas = 1% cost if ETH = $5000
+    - 1.0 ETH @ $50 gas = 0.1% cost
+  </Accordion>
+</AccordionGroup>
+
+## Tips for Success
+
+<AccordionGroup>
+  <Accordion title="Start Conservative">
+    Begin with higher `min_profitability` (2-3%) and lower `order_amount` to test the strategy safely.
+  </Accordion>
+  
+  <Accordion title="Monitor Price Impact">
+    Large orders on low-liquidity AMMs suffer from price impact. Check pool liquidity:
+    
+    ```python
+    # Order should be < 1% of pool liquidity
+    order_amount < pool_liquidity * 0.01
+    ```
+  </Accordion>
+  
+  <Accordion title="Account for Failed Transactions">
+    AMM transactions can fail due to slippage. Increase `slippage_buffer` if experiencing failures:
+    
+    - Start: 1-2%
+    - If failures: increase to 3-5%
+  </Accordion>
+  
+  <Accordion title="Balance Both Connectors">
+    Maintain sufficient balances on both sides:
+    - Quote asset on buy side
+    - Base asset on sell side
+    - Gas token for AMM transactions
+  </Accordion>
+</AccordionGroup>
+
+## Risk Management
+
+<Warning>
+**Primary Risks**:
+- **Gas Cost Risk**: Transaction fees exceed profits
+- **Slippage Risk**: Actual execution worse than estimated
+- **MEV Risk**: Front-running bots steal opportunity
+- **Inventory Risk**: Imbalanced positions across exchanges
+</Warning>
+
+**Risk Mitigation**:
+
+1. **Gas Management**: Use L2s or increase `min_profitability` for L1
+2. **Slippage Protection**: Set conservative `slippage_buffer` values
+3. **MEV Protection**: Use private RPCs or MEV-protection services
+4. **Inventory Control**: Regular rebalancing between exchanges
+
+## Performance Optimization
+
+### Network Selection
+
+| Network | Avg Gas Cost | Recommended min_profitability |
+|---------|--------------|-------------------------------|
+| Ethereum Mainnet | $50-200 | 2-5% |
+| Polygon | $0.01-0.10 | 0.3-0.5% |
+| Arbitrum | $0.10-1.00 | 0.5-1.0% |
+| BSC | $0.10-0.50 | 0.3-0.8% |
+
+### Order Size Guidelines
+
+```yaml
+# Calculate minimum order size for profitability:
+min_order_value = gas_cost / (min_profitability / 100)
+
+# Example: $50 gas, 2% profit target
+min_order_value = 50 / 0.02 = $2,500
+```
+
+## Source Code Reference
+
+Configuration: `/source/hummingbot/strategy/amm_arb/amm_arb_config_map.py:55`
+
+Strategy Implementation: `/source/hummingbot/strategy/amm_arb/amm_arb.py`
+
+Utils: `/source/hummingbot/strategy/amm_arb/utils.py`
+
+## Related Strategies
+
+- [Cross Exchange Market Making](/strategies/cross-exchange-market-making): Market making with hedging
+- [Spot Perpetual Arbitrage](/strategies/spot-perpetual-arbitrage): Funding rate arbitrage

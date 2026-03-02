@@ -1,0 +1,347 @@
+---
+title: CLOB DEX Perpetual Connectors
+description: Decentralized exchange connectors for on-chain perpetual futures trading
+keywords: ['CLOB', 'DEX', 'perpetual', 'futures', 'on-chain', 'leverage', 'DeFi']
+---
+
+CLOB DEX Perpetual connectors enable trading perpetual futures on decentralized exchanges with on-chain order books. These platforms combine the transparency and self-custody benefits of DeFi with the leverage and derivatives features of traditional futures markets.
+
+## How CLOB DEX Perpetual Connectors Work
+
+Decentralized perpetual exchanges bring derivatives trading on-chain:
+
+<CardGroup cols={2}>
+  <Card title="On-Chain Leverage" icon="chart-line">
+    Trade perpetual contracts with leverage while maintaining custody of your assets
+  </Card>
+  <Card title="Transparent Settlement" icon="cube">
+    All positions, liquidations, and funding rates are publicly verifiable on-chain
+  </Card>
+  <Card title="Non-Custodial Margin" icon="shield">
+    Your margin and collateral remain in your wallet, controlled by smart contracts
+  </Card>
+  <Card title="Permissionless Access" icon="unlock">
+    Trade without KYC, geographical restrictions, or account approval
+  </Card>
+</CardGroup>
+
+### Key Features
+
+<Tabs>
+  <Tab title="Decentralized Leverage">
+    Access leveraged trading without custody risk:
+    - Leverage typically 5-50x (varies by exchange)
+    - Smart contract-managed margin
+    - Transparent liquidation logic
+    - No withdrawal restrictions
+  </Tab>
+  
+  <Tab title="On-Chain Funding">
+    Funding mechanisms are automated and transparent:
+    - Public funding rate calculations
+    - Smart contract execution
+    - Verifiable payment distribution
+    - Real-time rate monitoring
+  </Tab>
+  
+  <Tab title="Self-Custody">
+    Maintain control throughout:
+    - Private keys never leave your possession
+    - Smart contract-based settlement
+    - Instant withdrawals (minus gas)
+    - No counterparty risk from exchange
+  </Tab>
+</Tabs>
+
+### Connection Requirements
+
+<Steps>
+  <Step title="Prepare trading wallet">
+    Set up a dedicated wallet for perpetual trading:
+    - Generate new wallet for trading only
+    - Fund with collateral tokens (USDC, USDT, etc.)
+    - Ensure sufficient native tokens for gas
+    
+    <Warning>
+    Perpetual trading with leverage carries liquidation risk. Never use your primary wallet or allocate more than you can afford to lose.
+    </Warning>
+  </Step>
+  
+  <Step title="Configure blockchain connection">
+    Set up RPC endpoint for the DEX's network:
+    - Choose reliable RPC provider
+    - Consider latency for liquidation protection
+    - Configure backup endpoints
+  </Step>
+  
+  <Step title="Connect in Hummingbot">
+    Use the perpetual connector ID:
+    ```bash
+    connect [exchange_name]_perpetual
+    ```
+    Enter your wallet private key when prompted.
+  </Step>
+</Steps>
+
+## Exchange Sponsors
+
+These decentralized perpetual exchanges actively support Hummingbot:
+
+<AccordionGroup>
+  <Accordion title="Derive Perpetual" icon="cube">
+    **Connector ID**: `derive_perpetual`
+    
+    High-performance perpetual DEX on Lyra chain.
+    
+    **Features:**
+    - On-chain perpetual order book
+    - Sub-second trade execution
+    - Multiple collateral types
+    - Up to 50x leverage
+    - Low gas fees on L2
+    - Integrated spot and perps
+    
+    **Network**: Lyra Chain (Optimistic Rollup)
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/derive/)
+  </Accordion>
+  
+  <Accordion title="dYdX v4" icon="cube">
+    **Connector ID**: `dydx_v4_perpetual`
+    
+    Leading decentralized perpetual exchange on dedicated chain.
+    
+    **Features:**
+    - Fully decentralized L1 blockchain
+    - Professional trading interface
+    - Deep liquidity
+    - Up to 20x leverage
+    - Zero gas fees
+    - Fast finality (1-2 seconds)
+    - Cross-margined positions
+    
+    **Network**: dYdX Chain (Cosmos-based)
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/dydx/)
+  </Accordion>
+  
+  <Accordion title="Hyperliquid Perpetual" icon="cube">
+    **Connector ID**: `hyperliquid_perpetual`
+    
+    Native perpetual DEX with on-chain order book.
+    
+    **Features:**
+    - Purpose-built L1 for derivatives
+    - 100+ perpetual markets
+    - Up to 50x leverage
+    - Zero gas for makers
+    - Native oracle integration
+    - Sub-second execution
+    - Vault strategies
+    
+    **Network**: Hyperliquid L1
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/hyperliquid/)
+  </Accordion>
+</AccordionGroup>
+
+## Other Supported Exchanges
+
+The following CLOB DEX perpetual exchanges are maintained through governance:
+
+<Card title="Injective Helix Perpetual" icon="cube">
+  **Connector ID**: `injective_v2_perpetual`
+  
+  Fully decentralized perpetual exchange on Injective.
+  
+  **Features:**
+  - Layer-1 blockchain optimized for DeFi
+  - Zero gas fees for trading
+  - Instant trade finality
+  - Cross-chain collateral
+  - MEV-resistant architecture
+  - Up to 20x leverage
+  
+  **Network**: Injective
+  
+  [Exchange Documentation](https://hummingbot.org/exchanges/injective/)
+</Card>
+
+## Supported Features
+
+CLOB DEX Perpetual connectors support advanced derivatives features:
+
+| Feature | Support |
+|---------|--------|
+| Limit orders | Yes |
+| Market orders | Yes |
+| Leverage adjustment | Yes |
+| Position tracking | Yes |
+| Funding rate data | Yes |
+| Liquidation price | Yes |
+| Cross margin | Yes (exchange dependent) |
+| Isolated margin | Limited |
+| Stop-loss orders | Some exchanges |
+| Reduce-only orders | Yes |
+| Gas estimation | Yes |
+
+<Note>
+Leverage limits and margin modes vary by exchange. Most DEX perpetuals use cross-margin by default.
+</Note>
+
+## Understanding On-Chain Liquidations
+
+Liquidations on DEX perpetuals differ from CEX:
+
+<Warning>
+**Liquidation Mechanics**
+
+- Triggered by smart contracts when maintenance margin breached
+- Executed by liquidator bots (often with incentives)
+- May experience delays during network congestion
+- Gas price spikes can delay liquidation protection
+- Insurance funds may be smaller than on CEXs
+</Warning>
+
+<Tip>
+**Liquidation Protection Strategies**
+
+1. **Lower leverage** - Use 2-5x instead of maximum available
+2. **Monitor gas prices** - High gas can delay order placement
+3. **Cross-margin risk** - Entire account at risk if one position liquidated
+4. **Reliable RPC** - Fast connectivity critical for position management
+5. **Keep extra margin** - Buffer beyond minimum maintenance requirement
+</Tip>
+
+## Gas Fees and Performance
+
+Gas costs affect perpetual trading profitability:
+
+<Tabs>
+  <Tab title="Layer 1 DEXs">
+    High-performance custom blockchains:
+    
+    **Examples**: dYdX Chain, Hyperliquid, Injective
+    
+    **Advantages:**
+    - Zero or very low gas fees
+    - Fast finality (1-3 seconds)
+    - Optimized for trading
+    - No congestion issues
+    
+    **Tradeoffs:**
+    - Smaller ecosystems
+    - Bridge dependency
+    - Less battle-tested security
+  </Tab>
+  
+  <Tab title="Layer 2 DEXs">
+    Rollup-based perpetual exchanges:
+    
+    **Examples**: Derive (Lyra), others on Arbitrum/Optimism
+    
+    **Advantages:**
+    - Ethereum security
+    - Growing ecosystems
+    - Lower gas than L1 Ethereum
+    
+    **Tradeoffs:**
+    - Still pay gas fees ($0.01-0.50)
+    - Occasional congestion
+    - Bridge delays
+  </Tab>
+</Tabs>
+
+## Funding Rates on DEX Perpetuals
+
+Funding mechanics are transparent and on-chain:
+
+<Info>
+**On-Chain Funding**
+- Calculated by smart contracts using oracle prices
+- Typically settled every 8 hours
+- Payments automatically debited/credited to positions
+- Historical rates publicly queryable
+- No exchange discretion or manipulation
+</Info>
+
+<CodeGroup>
+
+```python funding_calculation.py
+# Example: Calculating funding impact
+position_size = 10000  # USDC
+funding_rate = 0.01  # 1% (annualized ~10%)
+funding_period = 8  # hours
+
+# Funding cost per period
+funding_cost = position_size * funding_rate
+print(f"Funding per 8h: ${funding_cost}")  # $100
+
+# Account for gas on funding settlement (if applicable)
+gas_cost = 0.05  # $0.05 on L2
+total_cost = funding_cost + gas_cost
+print(f"Total cost: ${total_cost}")
+```
+
+</CodeGroup>
+
+## Security Considerations
+
+<Warning>
+**Smart Contract Risk**
+
+CLOB DEX perpetuals rely on smart contracts:
+- Contract bugs can lead to loss of funds
+- Oracle failures can cause incorrect liquidations
+- Upgradeable contracts may change behavior
+- Insurance funds may be insufficient for large events
+
+Always:
+- Research exchange audit history
+- Start with small positions
+- Understand the specific risks of each platform
+- Monitor protocol health and TVL
+</Warning>
+
+## Configuration Example
+
+Example configuration for a CLOB DEX perpetual connector:
+
+```yaml
+connector: hyperliquid_perpetual
+market: BTC-USD
+leverage: 5
+order_amount: 0.01
+order_refresh_time: 30
+gas_price_multiplier: 1.3  # Higher for faster execution
+```
+
+## Comparison: CEX vs DEX Perpetuals
+
+| Aspect | CEX Perpetual | DEX Perpetual |
+|--------|---------------|---------------|
+| Custody | Custodial | Non-custodial |
+| Leverage | Up to 125x | Up to 50x |
+| Liquidity | Very high | Growing |
+| Gas fees | None | Yes (varies) |
+| Speed | Fastest | Fast (1-3s) |
+| KYC | Required | Not required |
+| Transparency | Limited | Full |
+| Smart contract risk | No | Yes |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CLOB DEX Spot" icon="cube" href="/connectors/clob-dex-spot">
+    Explore decentralized spot connectors
+  </Card>
+  <Card title="CLOB CEX Perpetual" icon="building-columns" href="/connectors/clob-cex-perpetual">
+    Compare with centralized perpetuals
+  </Card>
+  <Card title="Wallet Setup" icon="wallet" href="/setup/wallet">
+    Configure wallets for DEX trading
+  </Card>
+  <Card title="Risk Management" icon="shield" href="/strategies/risk-management">
+    Learn risk management strategies
+  </Card>
+</CardGroup>

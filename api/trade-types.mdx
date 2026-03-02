@@ -1,0 +1,313 @@
+---
+title: Trade Types
+description: Trade type enums and data structures for executed trades in Hummingbot
+---
+
+## TradeType
+
+Enum defining the types of trades.
+
+**Source:** `hummingbot/core/data_type/common.py:62`
+
+<ResponseField name="BUY" type="int" default="1">
+  Buy trade - purchasing the base asset with the quote asset
+</ResponseField>
+
+<ResponseField name="SELL" type="int" default="2">
+  Sell trade - selling the base asset for the quote asset
+</ResponseField>
+
+<ResponseField name="RANGE" type="int" default="3">
+  Range trade - used for liquidity provision in a specific price range
+</ResponseField>
+
+## LPType
+
+Enum defining liquidity provider operation types.
+
+**Source:** `hummingbot/core/data_type/common.py:68`
+
+<ResponseField name="ADD" type="int" default="1">
+  Add liquidity to a pool
+</ResponseField>
+
+<ResponseField name="REMOVE" type="int" default="2">
+  Remove liquidity from a pool
+</ResponseField>
+
+<ResponseField name="COLLECT" type="int" default="3">
+  Collect fees from a liquidity position
+</ResponseField>
+
+## Trade
+
+NamedTuple representing an executed trade.
+
+**Source:** `hummingbot/core/data_type/trade.py:13`
+
+<ResponseField name="trading_pair" type="str">
+  Trading pair for the trade (e.g., "BTC-USDT")
+</ResponseField>
+
+<ResponseField name="side" type="TradeType">
+  Side of the trade (BUY or SELL)
+</ResponseField>
+
+<ResponseField name="price" type="float">
+  Execution price of the trade
+</ResponseField>
+
+<ResponseField name="amount" type="float">
+  Amount traded
+</ResponseField>
+
+<ResponseField name="order_type" type="OrderType">
+  Type of order that generated the trade
+</ResponseField>
+
+<ResponseField name="market" type="str">
+  Exchange/market where the trade was executed
+</ResponseField>
+
+<ResponseField name="timestamp" type="float">
+  Trade execution timestamp
+</ResponseField>
+
+<ResponseField name="trade_fee" type="TradeFeeBase">
+  Fee associated with the trade
+</ResponseField>
+
+### Properties
+
+<ResponseField name="trade_type" type="str">
+  Returns the trade side name ("BUY" or "SELL")
+</ResponseField>
+
+### Methods
+
+<ResponseField name="to_pandas(trades)" type="classmethod">
+  Converts a list of Trade objects to a pandas DataFrame with columns:
+  - trading_pair
+  - price
+  - quantity
+  - order_type
+  - trade_side
+  - market
+  - timestamp
+  - fee_percent
+  - flat_fee / gas
+</ResponseField>
+
+## TradeUpdate
+
+NamedTuple representing an update for a trade execution.
+
+**Source:** `hummingbot/core/data_type/in_flight_order.py:48`
+
+<ResponseField name="trade_id" type="str">
+  Unique identifier for the trade
+</ResponseField>
+
+<ResponseField name="client_order_id" type="str">
+  Client-assigned order identifier
+</ResponseField>
+
+<ResponseField name="exchange_order_id" type="str">
+  Exchange-assigned order identifier
+</ResponseField>
+
+<ResponseField name="trading_pair" type="str">
+  Trading pair for the trade
+</ResponseField>
+
+<ResponseField name="fill_timestamp" type="float">
+  Timestamp when the trade was filled (in seconds)
+</ResponseField>
+
+<ResponseField name="fill_price" type="Decimal">
+  Price at which the trade was filled
+</ResponseField>
+
+<ResponseField name="fill_base_amount" type="Decimal">
+  Amount of base asset filled
+</ResponseField>
+
+<ResponseField name="fill_quote_amount" type="Decimal">
+  Amount of quote asset filled
+</ResponseField>
+
+<ResponseField name="fee" type="TradeFeeBase">
+  Fee paid for the trade
+</ResponseField>
+
+<ResponseField name="is_taker" type="bool" default="True">
+  Whether the trade was executed as a taker (CEXs deliver trade events from the taker's perspective)
+</ResponseField>
+
+### Properties
+
+<ResponseField name="fee_asset" type="str">
+  The asset in which the fee was paid
+</ResponseField>
+
+### Methods
+
+<ResponseField name="from_json(data)" type="classmethod">
+  Creates a TradeUpdate instance from a JSON dictionary
+</ResponseField>
+
+<ResponseField name="to_json()" type="Dict[str, Any]">
+  Converts the TradeUpdate to a JSON-serializable dictionary
+</ResponseField>
+
+## InFlightOrder
+
+Class representing an order that is currently being tracked by the system.
+
+**Source:** `hummingbot/core/data_type/in_flight_order.py:91`
+
+### Constructor Parameters
+
+<ResponseField name="client_order_id" type="str">
+  Client-assigned unique identifier for the order
+</ResponseField>
+
+<ResponseField name="trading_pair" type="str">
+  Trading pair for the order
+</ResponseField>
+
+<ResponseField name="order_type" type="OrderType">
+  Type of the order
+</ResponseField>
+
+<ResponseField name="trade_type" type="TradeType">
+  Trade type (BUY or SELL)
+</ResponseField>
+
+<ResponseField name="amount" type="Decimal">
+  Order amount
+</ResponseField>
+
+<ResponseField name="creation_timestamp" type="float">
+  Timestamp when the order was created
+</ResponseField>
+
+<ResponseField name="price" type="Optional[Decimal]" default="None">
+  Order price (for limit orders)
+</ResponseField>
+
+<ResponseField name="exchange_order_id" type="Optional[str]" default="None">
+  Exchange-assigned order identifier
+</ResponseField>
+
+<ResponseField name="initial_state" type="OrderState" default="OrderState.PENDING_CREATE">
+  Initial state of the order
+</ResponseField>
+
+<ResponseField name="leverage" type="int" default="1">
+  Leverage for the order (for derivatives)
+</ResponseField>
+
+<ResponseField name="position" type="PositionAction" default="PositionAction.NIL">
+  Position action (for derivatives)
+</ResponseField>
+
+### Properties
+
+<ResponseField name="base_asset" type="str">
+  Base asset of the trading pair
+</ResponseField>
+
+<ResponseField name="quote_asset" type="str">
+  Quote asset of the trading pair
+</ResponseField>
+
+<ResponseField name="is_pending_create" type="bool">
+  `True` if the order is pending creation
+</ResponseField>
+
+<ResponseField name="is_pending_cancel_confirmation" type="bool">
+  `True` if the order is pending cancellation
+</ResponseField>
+
+<ResponseField name="is_open" type="bool">
+  `True` if the order is open (PENDING_CREATE, OPEN, PARTIALLY_FILLED, or PENDING_CANCEL)
+</ResponseField>
+
+<ResponseField name="is_done" type="bool">
+  `True` if the order is done (CANCELED, FILLED, FAILED, or fully executed)
+</ResponseField>
+
+<ResponseField name="is_filled" type="bool">
+  `True` if the order is completely filled
+</ResponseField>
+
+<ResponseField name="is_failure" type="bool">
+  `True` if the order failed
+</ResponseField>
+
+<ResponseField name="is_cancelled" type="bool">
+  `True` if the order was canceled
+</ResponseField>
+
+<ResponseField name="average_executed_price" type="Optional[Decimal]">
+  Average price of all partial fills
+</ResponseField>
+
+### Methods
+
+<ResponseField name="from_json(data)" type="classmethod">
+  Initializes an InFlightOrder from a JSON object
+</ResponseField>
+
+<ResponseField name="to_json()" type="Dict[str, Any]">
+  Returns the InFlightOrder as a JSON object
+</ResponseField>
+
+<ResponseField name="to_limit_order()" type="LimitOrder">
+  Converts the InFlightOrder to a LimitOrder object
+</ResponseField>
+
+<ResponseField name="update_exchange_order_id(exchange_order_id)" type="None">
+  Updates the exchange order ID
+</ResponseField>
+
+<ResponseField name="get_exchange_order_id()" type="async str">
+  Asynchronously waits for and returns the exchange order ID (with 10 second timeout)
+</ResponseField>
+
+<ResponseField name="cumulative_fee_paid(token, exchange)" type="Decimal">
+  Returns the total fee paid for all trade updates, expressed in the specified token
+</ResponseField>
+
+<ResponseField name="update_with_order_update(order_update)" type="bool">
+  Updates the order with an OrderUpdate (from REST or WebSocket API). Returns `True` if updated.
+</ResponseField>
+
+<ResponseField name="update_with_trade_update(trade_update)" type="bool">
+  Updates the order with a TradeUpdate (from REST or WebSocket API). Returns `True` if updated.
+</ResponseField>
+
+<ResponseField name="wait_until_completely_filled()" type="async None">
+  Waits asynchronously until the order is completely filled
+</ResponseField>
+
+<ResponseField name="wait_until_processed_by_exchange()" type="async None">
+  Waits asynchronously until the order is processed by the exchange
+</ResponseField>
+
+<ResponseField name="build_order_created_message()" type="str">
+  Builds a human-readable message for when the order is created
+</ResponseField>
+
+## PerpetualDerivativeInFlightOrder
+
+Extends InFlightOrder for perpetual derivative orders.
+
+**Source:** `hummingbot/core/data_type/in_flight_order.py:398`
+
+### Methods
+
+<ResponseField name="build_order_created_message()" type="str">
+  Builds a human-readable message for when the perpetual derivative order is created, including position information
+</ResponseField>

@@ -1,0 +1,382 @@
+---
+title: Market Data
+description: Market data structures including order books, price types, and position information
+---
+
+## PriceType
+
+Enum defining different types of prices used in the framework.
+
+**Source:** `hummingbot/core/data_type/common.py:52`
+
+<ResponseField name="MidPrice" type="int" default="1">
+  Mid-market price (average of best bid and best ask)
+</ResponseField>
+
+<ResponseField name="BestBid" type="int" default="2">
+  Best (highest) bid price in the order book
+</ResponseField>
+
+<ResponseField name="BestAsk" type="int" default="3">
+  Best (lowest) ask price in the order book
+</ResponseField>
+
+<ResponseField name="LastTrade" type="int" default="4">
+  Price of the last executed trade
+</ResponseField>
+
+<ResponseField name="LastOwnTrade" type="int" default="5">
+  Price of the last trade executed by the bot
+</ResponseField>
+
+<ResponseField name="InventoryCost" type="int" default="6">
+  Inventory cost price
+</ResponseField>
+
+<ResponseField name="Custom" type="int" default="7">
+  Custom price type
+</ResponseField>
+
+## PositionAction
+
+Enum defining position actions for derivatives trading.
+
+**Source:** `hummingbot/core/data_type/common.py:33`
+
+<ResponseField name="OPEN" type="str" default="OPEN">
+  Open a new position
+</ResponseField>
+
+<ResponseField name="CLOSE" type="str" default="CLOSE">
+  Close an existing position
+</ResponseField>
+
+<ResponseField name="NIL" type="str" default="NIL">
+  No position action (for spot trading)
+</ResponseField>
+
+## PositionSide
+
+Enum defining position sides for derivatives exchanges.
+
+**Source:** `hummingbot/core/data_type/common.py:40`
+
+<ResponseField name="LONG" type="str" default="LONG">
+  Long position (betting on price increase)
+</ResponseField>
+
+<ResponseField name="SHORT" type="str" default="SHORT">
+  Short position (betting on price decrease)
+</ResponseField>
+
+<ResponseField name="BOTH" type="str" default="BOTH">
+  Both long and short positions (for hedge mode)
+</ResponseField>
+
+## PositionMode
+
+Enum defining position modes for derivatives exchanges.
+
+**Source:** `hummingbot/core/data_type/common.py:47`
+
+<ResponseField name="HEDGE" type="str" default="HEDGE">
+  Hedge mode - allows simultaneous long and short positions
+</ResponseField>
+
+<ResponseField name="ONEWAY" type="str" default="ONEWAY">
+  One-way mode - only one position direction at a time
+</ResponseField>
+
+## OrderBookMessageType
+
+Enum defining types of order book messages.
+
+**Source:** `hummingbot/core/data_type/order_book_message.py:9`
+
+<ResponseField name="SNAPSHOT" type="int" default="1">
+  Full order book snapshot
+</ResponseField>
+
+<ResponseField name="DIFF" type="int" default="2">
+  Incremental order book update (diff)
+</ResponseField>
+
+<ResponseField name="TRADE" type="int" default="3">
+  Trade message
+</ResponseField>
+
+## OrderBookMessage
+
+NamedTuple representing an order book message.
+
+**Source:** `hummingbot/core/data_type/order_book_message.py:16`
+
+<ResponseField name="type" type="OrderBookMessageType">
+  Type of the message (SNAPSHOT, DIFF, or TRADE)
+</ResponseField>
+
+<ResponseField name="content" type="Dict[str, any]">
+  Message content containing order book data
+</ResponseField>
+
+<ResponseField name="timestamp" type="float">
+  Message timestamp
+</ResponseField>
+
+### Properties
+
+<ResponseField name="update_id" type="int">
+  Update ID for SNAPSHOT and DIFF messages, -1 for TRADE messages
+</ResponseField>
+
+<ResponseField name="first_update_id" type="int">
+  First update ID for DIFF messages, -1 otherwise
+</ResponseField>
+
+<ResponseField name="trade_id" type="int">
+  Trade ID for TRADE messages, -1 otherwise
+</ResponseField>
+
+<ResponseField name="trading_pair" type="str">
+  Trading pair for the message
+</ResponseField>
+
+<ResponseField name="asks" type="List[OrderBookRow]">
+  List of ask (sell) orders
+</ResponseField>
+
+<ResponseField name="bids" type="List[OrderBookRow]">
+  List of bid (buy) orders
+</ResponseField>
+
+<ResponseField name="has_update_id" type="bool">
+  `True` if the message has an update ID (SNAPSHOT or DIFF)
+</ResponseField>
+
+<ResponseField name="has_trade_id" type="bool">
+  `True` if the message has a trade ID (TRADE)
+</ResponseField>
+
+## OrderBookRow
+
+NamedTuple representing a row in an order book.
+
+**Source:** `hummingbot/core/data_type/order_book_row.py:7`
+
+<Note>
+  Used to apply changes to OrderBook. OrderBook classes use float internally for better performance over Decimal.
+</Note>
+
+<ResponseField name="price" type="float">
+  Price level
+</ResponseField>
+
+<ResponseField name="amount" type="float">
+  Order amount at this price level
+</ResponseField>
+
+<ResponseField name="update_id" type="int">
+  Update ID associated with this row
+</ResponseField>
+
+## ClientOrderBookRow
+
+NamedTuple representing an order book row with Decimal precision.
+
+**Source:** `hummingbot/core/data_type/order_book_row.py:16`
+
+<Note>
+  Used in market classes where OrderBook values are converted to Decimal for precision.
+</Note>
+
+<ResponseField name="price" type="Decimal">
+  Price level (high precision)
+</ResponseField>
+
+<ResponseField name="amount" type="Decimal">
+  Order amount at this price level (high precision)
+</ResponseField>
+
+<ResponseField name="update_id" type="int">
+  Update ID associated with this row
+</ResponseField>
+
+## OrderUpdate
+
+NamedTuple representing an order status update.
+
+**Source:** `hummingbot/core/data_type/in_flight_order.py:39`
+
+<ResponseField name="trading_pair" type="str">
+  Trading pair for the order
+</ResponseField>
+
+<ResponseField name="update_timestamp" type="float">
+  Timestamp of the update (in seconds)
+</ResponseField>
+
+<ResponseField name="new_state" type="OrderState">
+  New state of the order
+</ResponseField>
+
+<ResponseField name="client_order_id" type="Optional[str]" default="None">
+  Client-assigned order identifier
+</ResponseField>
+
+<ResponseField name="exchange_order_id" type="Optional[str]" default="None">
+  Exchange-assigned order identifier
+</ResponseField>
+
+<ResponseField name="misc_updates" type="Optional[Dict[str, Any]]" default="None">
+  Additional miscellaneous update information
+</ResponseField>
+
+## TokenAmount
+
+Dataclass representing an amount of a specific token.
+
+**Source:** `hummingbot/core/data_type/trade_fee.py:19`
+
+<ResponseField name="token" type="str">
+  Token symbol (e.g., "BTC", "USDT")
+</ResponseField>
+
+<ResponseField name="amount" type="Decimal">
+  Amount of the token
+</ResponseField>
+
+### Methods
+
+<ResponseField name="__iter__()" type="Iterator">
+  Allows unpacking as tuple: `token, amount = token_amount`
+</ResponseField>
+
+<ResponseField name="to_json()" type="Dict[str, Any]">
+  Converts to a JSON-serializable dictionary
+</ResponseField>
+
+<ResponseField name="from_json(data)" type="classmethod">
+  Creates a TokenAmount from a JSON dictionary
+</ResponseField>
+
+## TradeFeeSchema
+
+Dataclass containing the information needed to build a TradeFee object.
+
+**Source:** `hummingbot/core/data_type/trade_fee.py:39`
+
+<ResponseField name="percent_fee_token" type="Optional[str]" default="None">
+  Token in which the percentage fee is charged (if always charged in a specific token, e.g., BNB on Binance)
+</ResponseField>
+
+<ResponseField name="maker_percent_fee_decimal" type="Decimal" default="0">
+  Maker fee as a decimal (e.g., 0.001 for 0.1%)
+</ResponseField>
+
+<ResponseField name="taker_percent_fee_decimal" type="Decimal" default="0">
+  Taker fee as a decimal (e.g., 0.001 for 0.1%)
+</ResponseField>
+
+<ResponseField name="buy_percent_fee_deducted_from_returns" type="bool" default="False">
+  Whether buy fees are deducted from returns instead of added to costs
+</ResponseField>
+
+<ResponseField name="maker_fixed_fees" type="List[TokenAmount]" default="[]">
+  Fixed fees charged for maker orders
+</ResponseField>
+
+<ResponseField name="taker_fixed_fees" type="List[TokenAmount]" default="[]">
+  Fixed fees charged for taker orders
+</ResponseField>
+
+## TradeFeeBase
+
+Abstract base dataclass representing a trade fee for a particular order.
+
+**Source:** `hummingbot/core/data_type/trade_fee.py:75`
+
+<ResponseField name="percent" type="Decimal" default="0">
+  Percentage fee as a decimal
+</ResponseField>
+
+<ResponseField name="percent_token" type="Optional[str]" default="None">
+  Token in which the percentage fee is charged (only set for third-token fees like Binance BNB)
+</ResponseField>
+
+<ResponseField name="flat_fees" type="List[TokenAmount]" default="[]">
+  List of flat fees (token, amount) tuples
+</ResponseField>
+
+### Properties
+
+<ResponseField name="fee_asset" type="str">
+  The asset in which the fee is paid (either percent_token or first flat fee token)
+</ResponseField>
+
+### Methods
+
+<ResponseField name="new_spot_fee(fee_schema, trade_type, percent, percent_token, flat_fees)" type="classmethod">
+  Creates a new spot trading fee instance
+</ResponseField>
+
+<ResponseField name="new_perpetual_fee(fee_schema, position_action, percent, percent_token, flat_fees)" type="classmethod">
+  Creates a new perpetual trading fee instance
+</ResponseField>
+
+<ResponseField name="from_json(data)" type="classmethod">
+  Creates a TradeFeeBase instance from a JSON dictionary
+</ResponseField>
+
+<ResponseField name="to_json()" type="Dict[str, any]">
+  Converts the fee to a JSON-serializable dictionary
+</ResponseField>
+
+<ResponseField name="fee_amount_in_token(trading_pair, price, order_amount, token, exchange, rate_source)" type="Decimal">
+  Calculates the fee amount expressed in a specific token
+</ResponseField>
+
+<ResponseField name="get_fee_impact_on_order_cost(order_candidate, exchange)" type="Optional[TokenAmount]">
+  Abstract method - returns the impact of the fee on cost requirements for a candidate order
+</ResponseField>
+
+<ResponseField name="get_fee_impact_on_order_returns(order_candidate, exchange)" type="Optional[Decimal]">
+  Abstract method - returns the impact of the fee on expected returns from a candidate order
+</ResponseField>
+
+## AddedToCostTradeFee
+
+Trade fee that is added to the order cost.
+
+**Source:** `hummingbot/core/data_type/trade_fee.py:251`
+
+Inherits from TradeFeeBase. Used when fees are added to the cost of the order (typical for buy orders).
+
+## DeductedFromReturnsTradeFee
+
+Trade fee that is deducted from the order returns.
+
+**Source:** `hummingbot/core/data_type/trade_fee.py:292`
+
+Inherits from TradeFeeBase. Used when fees are deducted from the returns of the order (typical for sell orders).
+
+## MakerTakerExchangeFeeRates
+
+Frozen dataclass representing maker and taker fee rates for an exchange.
+
+**Source:** `hummingbot/core/data_type/trade_fee.py:321`
+
+<ResponseField name="maker" type="Decimal">
+  Maker fee rate as a decimal
+</ResponseField>
+
+<ResponseField name="taker" type="Decimal">
+  Taker fee rate as a decimal
+</ResponseField>
+
+<ResponseField name="maker_flat_fees" type="List[TokenAmount]">
+  Flat fees for maker orders
+</ResponseField>
+
+<ResponseField name="taker_flat_fees" type="List[TokenAmount]">
+  Flat fees for taker orders
+</ResponseField>

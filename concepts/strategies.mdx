@@ -1,0 +1,143 @@
+---
+title: Strategies
+description: Understanding Hummingbot trading strategies and architecture
+---
+
+## Overview
+
+Hummingbot strategies are automated trading logic that execute buy and sell orders based on defined parameters. Hummingbot supports two strategy frameworks: **V1 (Classic)** strategies and **V2 (Controller-based)** strategies.
+
+## Strategy Framework Comparison
+
+### V1 Strategies (Classic)
+
+V1 strategies are the original Hummingbot strategy framework, implemented as monolithic strategy classes that inherit from `StrategyPyBase`.
+
+**Architecture:**
+- Located in `hummingbot/strategy/`
+- Each strategy is a self-contained Cython module (`.pyx` files)
+- Inherits from `StrategyPyBase` which provides event-driven hooks
+- Direct integration with exchange connectors
+
+**Key Methods:**
+```python
+class StrategyPyBase(StrategyBase):
+    def tick(self, timestamp: float):
+        # Main strategy logic executed on each clock tick
+        pass
+    
+    def did_fill_order(self, order_filled_event: OrderFilledEvent):
+        # Handle order fill events
+        pass
+    
+    def did_complete_buy_order(self, order_completed_event: BuyOrderCompletedEvent):
+        # Handle completed buy orders
+        pass
+```
+
+**Available V1 Strategies:**
+- `pure_market_making` - Market making on a single exchange
+- `cross_exchange_market_making` - Arbitrage between two exchanges
+- `avellaneda_market_making` - Advanced market making with inventory management
+- `amm_arb` - Arbitrage between AMM and order book exchanges
+- `liquidity_mining` - Automated liquidity provision
+- `spot_perpetual_arbitrage` - Arbitrage between spot and perpetual markets
+- `perpetual_market_making` - Market making on perpetual futures
+- `hedge` - Hedging strategy across markets
+- `cross_exchange_mining` - Mining across multiple exchanges
+
+Source: `hummingbot/strategy/` directory.
+
+### V2 Strategies (Controller-based)
+
+V2 strategies use a modular, controller-based architecture that separates strategy logic into reusable components.
+
+**Architecture:**
+- Strategy scripts use configuration classes that inherit from `StrategyV2ConfigBase`
+- Controllers implement specific trading logic (directional trading, market making, LP management)
+- Executors handle position management and order execution
+- Market data providers supply candles, order book, and trade data
+
+**Key Components:**
+
+```python
+class StrategyV2ConfigBase(BaseClientModel):
+    script_file_name: str = ""
+    controllers_config: List[str] = Field(default=[])
+    
+    def load_controller_configs(self):
+        # Load controller configurations
+        pass
+```
+
+**Controller Types:**
+
+<CardGroup cols={2}>
+  <Card title="Directional Trading" icon="chart-line">
+    Controllers that take directional positions based on market signals
+    
+    - `bollinger_v1` - Bollinger Bands mean reversion
+    - `bollinger_v2` - Advanced Bollinger strategy
+    - `macd_bb_v1` - MACD + Bollinger Bands
+    - `supertrend_v1` - SuperTrend indicator strategy
+    - `dman_v3` - Dynamic risk management
+    - `bollingrid` - Grid trading with Bollinger Bands
+  </Card>
+  
+  <Card title="Market Making" icon="arrows-left-right">
+    Controllers that provide liquidity by placing orders on both sides
+    
+    - `pmm_simple` - Simple pure market making
+    - `pmm_dynamic` - Dynamic spread adjustments
+    - `dman_maker_v2` - Advanced market making with risk management
+  </Card>
+</CardGroup>
+
+Source: `controllers/directional_trading/` and `controllers/market_making/`.
+
+**Data Integration:**
+
+V2 strategies use `MarketDataProvider` to access market data:
+
+```python
+from hummingbot.data_feed.candles_feed.data_types import CandlesConfig
+
+class BollingerV1ControllerConfig(DirectionalTradingControllerConfigBase):
+    candles_connector: str
+    candles_trading_pair: str
+    interval: str = "3m"
+    bb_length: int = 100
+    bb_std: float = 2.0
+
+class BollingerV1Controller(DirectionalTradingControllerBase):
+    def get_candles_config(self) -> List[CandlesConfig]:
+        return [CandlesConfig(
+            connector=self.config.candles_connector,
+            trading_pair=self.config.candles_trading_pair,
+            interval=self.config.interval,
+            max_records=self.max_records
+        )]
+```
+
+Source: `controllers/directional_trading/bollinger_v1.py:14-65`.
+
+## Choosing a Strategy Framework
+
+<Tip>
+**Use V2 strategies** for:
+- Modular, reusable trading logic
+- Technical indicator-based strategies
+- Backtesting and optimization
+- Rapid strategy development
+
+**Use V1 strategies** for:
+- Legacy strategy compatibility
+- Highly customized, complex logic
+- When you need low-level control over order management
+</Tip>
+
+## Related Concepts
+
+- [Connectors](/concepts/connectors) - Exchange integration layer
+- [Order Types](/concepts/order-types) - Different order execution methods
+- [Market Data](/concepts/market-data) - Data structures for trading decisions

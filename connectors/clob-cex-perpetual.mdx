@@ -1,0 +1,309 @@
+---
+title: CLOB CEX Perpetual Connectors
+description: Centralized exchange connectors for perpetual futures trading with leverage
+keywords: ['CLOB', 'CEX', 'perpetual', 'futures', 'leverage', 'derivatives']
+---
+
+CLOB CEX Perpetual connectors enable trading perpetual futures contracts on centralized exchanges. These connectors provide access to leveraged trading with funding rates, liquidation mechanisms, and advanced risk management features.
+
+## How CLOB CEX Perpetual Connectors Work
+
+Perpetual futures connectors extend spot trading capabilities with derivatives-specific features:
+
+<CardGroup cols={2}>
+  <Card title="Leverage Trading" icon="chart-line">
+    Trade with leverage up to 100x on supported exchanges with margin management
+  </Card>
+  <Card title="Funding Rates" icon="coins">
+    Automatic handling of perpetual funding rate payments between long and short positions
+  </Card>
+  <Card title="Position Management" icon="sliders">
+    Track and manage open positions, unrealized PnL, and liquidation prices
+  </Card>
+  <Card title="Risk Controls" icon="shield">
+    Built-in safeguards for margin requirements and liquidation protection
+  </Card>
+</CardGroup>
+
+### Key Differences from Spot
+
+<Tabs>
+  <Tab title="Leverage">
+    Perpetual connectors support leveraged trading:
+    - Trade with borrowed capital (up to 100x leverage)
+    - Increased profit potential and risk
+    - Margin requirements and maintenance
+    - Automatic deleveraging in extreme conditions
+  </Tab>
+  
+  <Tab title="Funding Rates">
+    Perpetual contracts use funding rates to anchor prices:
+    - Periodic payments between longs and shorts
+    - Typically every 8 hours
+    - Positive rate: longs pay shorts
+    - Negative rate: shorts pay longs
+    - Strategy consideration for long-running positions
+  </Tab>
+  
+  <Tab title="Positions">
+    Track position state beyond simple balances:
+    - Entry price and current mark price
+    - Unrealized and realized PnL
+    - Liquidation price calculations
+    - Position size and margin usage
+  </Tab>
+</Tabs>
+
+### Connection Requirements
+
+<Steps>
+  <Step title="Generate API keys">
+    Create API keys with futures trading permissions:
+    - Read account balances
+    - Place and cancel orders
+    - Access futures positions
+    - Read funding rate data
+    
+    <Warning>
+    Never enable withdrawal permissions. Use separate API keys for futures and spot trading.
+    </Warning>
+  </Step>
+  
+  <Step title="Configure in Hummingbot">
+    Connect using the perpetual connector ID:
+    ```bash
+    connect [exchange_name]_perpetual
+    ```
+  </Step>
+  
+  <Step title="Set leverage">
+    Configure your desired leverage level:
+    ```bash
+    # Most exchanges default to cross margin mode
+    # Leverage can be adjusted per trading pair
+    ```
+  </Step>
+</Steps>
+
+## Exchange Sponsors
+
+These centralized perpetual exchanges actively support Hummingbot:
+
+<AccordionGroup>
+  <Accordion title="Binance Perpetual" icon="building-columns">
+    **Connector ID**: `binance_perpetual`
+    
+    World's largest perpetual futures exchange by volume.
+    
+    **Features:**
+    - 200+ perpetual contracts
+    - Up to 125x leverage
+    - Cross and isolated margin modes
+    - Deep liquidity and tight spreads
+    - USDⓈ-M and COIN-M futures
+    
+    **Discount**: 10% fee discount with Hummingbot referral link
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/binance/)
+  </Accordion>
+  
+  <Accordion title="BitMart Perpetual" icon="building-columns">
+    **Connector ID**: `bitmart_perpetual`
+    
+    Growing perpetual futures platform.
+    
+    **Features:**
+    - Multiple perpetual contracts
+    - Competitive leverage options
+    - User-friendly interface
+    - Cross margin support
+    
+    **Discount**: Sponsor partnership with referral link
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/bitmart/)
+  </Accordion>
+  
+  <Accordion title="Bitget Perpetual" icon="building-columns">
+    **Connector ID**: `bitget_perpetual`
+    
+    Leading derivatives exchange with copy trading.
+    
+    **Features:**
+    - Popular perpetual contracts
+    - Up to 125x leverage
+    - Copy trading for futures
+    - Advanced risk management
+    
+    **Discount**: Sponsor partnership with referral link
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/bitget/)
+  </Accordion>
+  
+  <Accordion title="Gate.io Perpetual" icon="building-columns">
+    **Connector ID**: `gate_io_perpetual`
+    
+    Comprehensive derivatives trading platform.
+    
+    **Features:**
+    - 300+ perpetual contracts
+    - Up to 100x leverage
+    - Multiple margin modes
+    - Portfolio margin option
+    
+    **Discount**: 20% fee discount with Hummingbot referral link
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/gate-io/)
+  </Accordion>
+  
+  <Accordion title="KuCoin Perpetual" icon="building-columns">
+    **Connector ID**: `kucoin_perpetual`
+    
+    Derivatives platform with diverse contracts.
+    
+    **Features:**
+    - Wide range of perpetual contracts
+    - Up to 100x leverage
+    - Cross and isolated margin
+    - Low trading fees
+    
+    **Discount**: 20% fee discount with Hummingbot referral link
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/kucoin/)
+  </Accordion>
+  
+  <Accordion title="OKX Perpetual" icon="building-columns">
+    **Connector ID**: `okx_perpetual`
+    
+    Advanced derivatives trading platform.
+    
+    **Features:**
+    - Extensive perpetual offerings
+    - Up to 125x leverage
+    - Portfolio margin mode
+    - Unified trading account
+    - Options and futures
+    
+    **Discount**: 20% fee discount with Hummingbot referral link
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/okx/)
+  </Accordion>
+</AccordionGroup>
+
+## Other Supported Exchanges
+
+The following perpetual exchanges are maintained through the Hummingbot Foundation governance process:
+
+<Card title="Bybit Perpetual" icon="building">
+  **Connector ID**: `bybit_perpetual`
+  
+  Major derivatives exchange with retail and institutional offerings.
+  
+  **Features:**
+  - USDT and USDC perpetuals
+  - Up to 100x leverage
+  - Unified margin account
+  - Derivatives-focused platform
+  
+  [Exchange Documentation](https://hummingbot.org/exchanges/bybit/)
+</Card>
+
+## Supported Features
+
+CLOB CEX Perpetual connectors support advanced derivatives features:
+
+| Feature | Support |
+|---------|--------|
+| Limit orders | Yes |
+| Market orders | Yes |
+| Stop-loss orders | Yes |
+| Take-profit orders | Yes |
+| Leverage adjustment | Yes |
+| Cross margin | Yes |
+| Isolated margin | Yes (exchange dependent) |
+| Position tracking | Yes |
+| Funding rate data | Yes |
+| Liquidation price | Yes |
+| Reduce-only orders | Yes |
+
+<Note>
+Leverage limits and margin modes vary by exchange. Always check exchange-specific documentation.
+</Note>
+
+## Trading Perpetuals Safely
+
+<Warning>
+**Liquidation Risk**
+
+Perpetual futures carry significant liquidation risk:
+- Leverage amplifies both gains and losses
+- Positions can be liquidated if margin falls below maintenance level
+- Market volatility can trigger rapid liquidations
+- Always use stop-loss orders and position sizing
+</Warning>
+
+<Tip>
+**Risk Management Best Practices**
+
+1. **Start with low leverage** (2-5x) until familiar with the exchange
+2. **Use isolated margin** for better risk control per position
+3. **Monitor funding rates** - they impact profitability on long positions
+4. **Set stop-loss orders** to limit downside
+5. **Size positions appropriately** - never risk more than 1-2% per trade
+6. **Test with small amounts** before deploying significant capital
+</Tip>
+
+## Funding Rate Considerations
+
+Funding rates affect strategy profitability:
+
+<CodeGroup>
+
+```python calculating_funding_cost.py
+# Funding typically occurs every 8 hours
+position_size = 10000  # USDT
+funding_rate = 0.01  # 1% (annualized ~10%)
+
+# Cost per funding period
+funding_cost = position_size * funding_rate
+print(f"Funding cost: ${funding_cost}")  # $100
+
+# Daily cost (3 funding periods)
+daily_cost = funding_cost * 3
+print(f"Daily cost: ${daily_cost}")  # $300
+```
+
+</CodeGroup>
+
+<Info>
+Positive funding rates mean longs pay shorts. During strong bull markets, funding can be significantly positive, making short-term long positions expensive.
+</Info>
+
+## Configuration Example
+
+Example configuration for a perpetual connector:
+
+```yaml
+connector: binance_perpetual
+market: BTC-USDT
+leverage: 10
+order_amount: 0.01
+order_refresh_time: 30
+margin_mode: cross  # or isolated
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CLOB CEX Spot" icon="coins" href="/connectors/clob-cex-spot">
+    Learn about spot trading connectors
+  </Card>
+  <Card title="Risk Management" icon="shield" href="/strategies/risk-management">
+    Advanced risk management strategies
+  </Card>
+  <Card title="CLOB DEX Perpetual" icon="cube" href="/connectors/clob-dex-perpetual">
+    Explore decentralized perpetual connectors
+  </Card>
+  <Card title="Getting Started" icon="rocket" href="/installation">
+    Install Hummingbot
+  </Card>
+</CardGroup>

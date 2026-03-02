@@ -1,0 +1,327 @@
+---
+title: TradingRule
+description: Defines exchange-specific trading constraints and requirements
+---
+
+`TradingRule` encapsulates all the trading constraints and requirements for a specific trading pair on an exchange. This includes minimum order sizes, price increments, and order type support.
+
+## Class Definition
+
+```python
+class TradingRule:
+    def __init__(
+        self,
+        trading_pair: str,
+        min_order_size: Decimal = s_decimal_0,
+        max_order_size: Decimal = s_decimal_max,
+        min_price_increment: Decimal = s_decimal_min,
+        min_base_amount_increment: Decimal = s_decimal_min,
+        min_quote_amount_increment: Decimal = s_decimal_min,
+        min_notional_size: Decimal = s_decimal_0,
+        min_order_value: Decimal = s_decimal_0,
+        max_price_significant_digits: Decimal = s_decimal_max,
+        supports_limit_orders: bool = True,
+        supports_market_orders: bool = True,
+        buy_order_collateral_token: Optional[str] = None,
+        sell_order_collateral_token: Optional[str] = None
+    )
+```
+
+## Parameters
+
+<ParamField path="trading_pair" type="str" required>
+  The trading pair these rules apply to (e.g., "BTC-USDT").
+</ParamField>
+
+<ParamField path="min_order_size" type="Decimal" default="0">
+  The minimum order size in base asset that the exchange accepts.
+</ParamField>
+
+<ParamField path="max_order_size" type="Decimal" default="1e56">
+  The maximum order size in base asset that the exchange accepts.
+</ParamField>
+
+<ParamField path="min_price_increment" type="Decimal" default="1e-56">
+  The minimum price increment (tick size) for orders. Prices must be multiples of this value.
+</ParamField>
+
+<ParamField path="min_base_amount_increment" type="Decimal" default="1e-56">
+  The minimum increment for the base asset amount. Order amounts must be multiples of this value.
+</ParamField>
+
+<ParamField path="min_quote_amount_increment" type="Decimal" default="1e-56">
+  The minimum increment for the quote asset amount.
+</ParamField>
+
+<ParamField path="min_notional_size" type="Decimal" default="0">
+  The minimum notional value (price × amount) that the exchange accepts for an order.
+</ParamField>
+
+<ParamField path="min_order_value" type="Decimal" default="0">
+  The minimum order value in quote asset. Similar to min_notional_size.
+</ParamField>
+
+<ParamField path="max_price_significant_digits" type="Decimal" default="1e56">
+  The maximum number of significant digits allowed in the price.
+</ParamField>
+
+<ParamField path="supports_limit_orders" type="bool" default="true">
+  Whether this trading pair supports limit orders.
+</ParamField>
+
+<ParamField path="supports_market_orders" type="bool" default="true">
+  Whether this trading pair supports market orders.
+</ParamField>
+
+<ParamField path="buy_order_collateral_token" type="Optional[str]" default="quote_token">
+  The token used as collateral for buy orders (mainly for derivative exchanges). Defaults to quote token.
+</ParamField>
+
+<ParamField path="sell_order_collateral_token" type="Optional[str]" default="quote_token">
+  The token used as collateral for sell orders (mainly for derivative exchanges). Defaults to quote token.
+</ParamField>
+
+## Properties
+
+All constructor parameters are stored as instance attributes and can be accessed directly:
+
+```python
+rule = TradingRule("BTC-USDT", min_order_size=Decimal("0.001"))
+
+print(rule.trading_pair)  # "BTC-USDT"
+print(rule.min_order_size)  # Decimal('0.001')
+print(rule.supports_limit_orders)  # True
+```
+
+## String Representation
+
+The `__repr__` method provides a detailed string representation of all trading rule parameters:
+
+```python
+rule = TradingRule(
+    trading_pair="BTC-USDT",
+    min_order_size=Decimal("0.001"),
+    min_price_increment=Decimal("0.01")
+)
+
+print(rule)
+# TradingRule(trading_pair='BTC-USDT', min_order_size=0.001, 
+#             max_order_size=1e56, min_price_increment=0.01, ...)
+```
+
+## Usage Examples
+
+### Creating Trading Rules
+
+```python
+from hummingbot.connector.trading_rule import TradingRule
+from decimal import Decimal
+
+# Basic trading rule with minimum order size
+btc_rule = TradingRule(
+    trading_pair="BTC-USDT",
+    min_order_size=Decimal("0.001"),  # 0.001 BTC minimum
+    max_order_size=Decimal("1000"),   # 1000 BTC maximum
+    min_price_increment=Decimal("0.01"),  # $0.01 tick size
+    min_notional_size=Decimal("10"),  # $10 minimum order value
+)
+
+# Trading rule for a token with different requirements
+eth_rule = TradingRule(
+    trading_pair="ETH-USDT",
+    min_order_size=Decimal("0.01"),
+    min_price_increment=Decimal("0.01"),
+    min_base_amount_increment=Decimal("0.01"),
+    supports_market_orders=True,
+    supports_limit_orders=True,
+)
+```
+
+### Validating Orders Against Trading Rules
+
+```python
+def validate_order(rule: TradingRule, amount: Decimal, price: Decimal) -> bool:
+    """Validate if an order meets the trading rule requirements."""
+    
+    # Check minimum order size
+    if amount < rule.min_order_size:
+        print(f"Order size {amount} is less than minimum {rule.min_order_size}")
+        return False
+    
+    # Check maximum order size
+    if amount > rule.max_order_size:
+        print(f"Order size {amount} exceeds maximum {rule.max_order_size}")
+        return False
+    
+    # Check minimum notional value
+    notional = amount * price
+    if notional < rule.min_notional_size:
+        print(f"Order value {notional} is less than minimum {rule.min_notional_size}")
+        return False
+    
+    # Check amount increment
+    if amount % rule.min_base_amount_increment != 0:
+        print(f"Amount must be a multiple of {rule.min_base_amount_increment}")
+        return False
+    
+    # Check price increment
+    if price % rule.min_price_increment != 0:
+        print(f"Price must be a multiple of {rule.min_price_increment}")
+        return False
+    
+    return True
+
+# Usage
+rule = TradingRule(
+    trading_pair="BTC-USDT",
+    min_order_size=Decimal("0.001"),
+    min_price_increment=Decimal("0.01"),
+    min_notional_size=Decimal("10"),
+)
+
+valid = validate_order(rule, Decimal("0.005"), Decimal("50000.00"))
+```
+
+### Quantizing Orders to Trading Rules
+
+```python
+def quantize_order_amount(amount: Decimal, rule: TradingRule) -> Decimal:
+    """Quantize amount to match trading rule increment."""
+    increment = rule.min_base_amount_increment
+    return (amount // increment) * increment
+
+def quantize_order_price(price: Decimal, rule: TradingRule) -> Decimal:
+    """Quantize price to match trading rule increment."""
+    increment = rule.min_price_increment
+    return (price // increment) * increment
+
+# Usage
+rule = TradingRule(
+    trading_pair="ETH-USDT",
+    min_base_amount_increment=Decimal("0.01"),
+    min_price_increment=Decimal("0.01"),
+)
+
+original_amount = Decimal("1.2345")
+quantized_amount = quantize_order_amount(original_amount, rule)
+print(quantized_amount)  # 1.23
+
+original_price = Decimal("3456.789")
+quantized_price = quantize_order_price(original_price, rule)
+print(quantized_price)  # 3456.78
+```
+
+### Using in a Connector
+
+```python
+from typing import Dict
+from hummingbot.connector.connector_base import ConnectorBase
+
+class MyExchangeConnector(ConnectorBase):
+    def __init__(self):
+        super().__init__()
+        self._trading_rules: Dict[str, TradingRule] = {}
+    
+    async def _update_trading_rules(self):
+        """Fetch trading rules from exchange API."""
+        # Example: Fetch from exchange API
+        exchange_rules = await self._api_request("GET", "/trading_rules")
+        
+        for pair_data in exchange_rules:
+            trading_pair = pair_data["symbol"]
+            self._trading_rules[trading_pair] = TradingRule(
+                trading_pair=trading_pair,
+                min_order_size=Decimal(str(pair_data["min_qty"])),
+                max_order_size=Decimal(str(pair_data["max_qty"])),
+                min_price_increment=Decimal(str(pair_data["tick_size"])),
+                min_base_amount_increment=Decimal(str(pair_data["step_size"])),
+                min_notional_size=Decimal(str(pair_data["min_notional"])),
+            )
+    
+    def get_order_size_quantum(self, trading_pair: str, order_size: Decimal) -> Decimal:
+        """Get the minimum order size increment for a trading pair."""
+        trading_rule = self._trading_rules.get(trading_pair)
+        if trading_rule:
+            return trading_rule.min_base_amount_increment
+        return Decimal("0")
+    
+    def quantize_order_amount(self, trading_pair: str, amount: Decimal) -> Decimal:
+        """Quantize order amount according to trading rules."""
+        trading_rule = self._trading_rules.get(trading_pair)
+        if trading_rule:
+            increment = trading_rule.min_base_amount_increment
+            return (amount // increment) * increment
+        return amount
+```
+
+### Derivative Trading with Collateral Tokens
+
+```python
+# For perpetual futures where collateral token differs from quote token
+btc_perp_rule = TradingRule(
+    trading_pair="BTC-USDT-PERP",
+    min_order_size=Decimal("0.001"),
+    min_price_increment=Decimal("0.1"),
+    buy_order_collateral_token="USDT",   # Use USDT as collateral for longs
+    sell_order_collateral_token="USDT",  # Use USDT as collateral for shorts
+)
+
+# Access collateral tokens
+print(btc_perp_rule.buy_order_collateral_token)  # "USDT"
+print(btc_perp_rule.sell_order_collateral_token)  # "USDT"
+```
+
+## Common Use Cases
+
+### Checking Order Type Support
+
+```python
+rule = TradingRule(
+    trading_pair="SOME-TOKEN",
+    supports_limit_orders=True,
+    supports_market_orders=False,  # Market orders not supported
+)
+
+if rule.supports_limit_orders:
+    # Place limit order
+    pass
+else:
+    print("Limit orders not supported for this pair")
+
+if not rule.supports_market_orders:
+    print("Market orders not available, using limit orders instead")
+```
+
+### Calculating Adjusted Order Parameters
+
+```python
+def prepare_order(rule: TradingRule, raw_amount: Decimal, raw_price: Decimal):
+    """Prepare order parameters that conform to trading rules."""
+    
+    # Quantize to increments
+    amount = (raw_amount // rule.min_base_amount_increment) * rule.min_base_amount_increment
+    price = (raw_price // rule.min_price_increment) * rule.min_price_increment
+    
+    # Ensure minimum order size
+    if amount < rule.min_order_size:
+        amount = rule.min_order_size
+    
+    # Ensure maximum order size
+    if amount > rule.max_order_size:
+        amount = rule.max_order_size
+    
+    # Check minimum notional
+    notional = amount * price
+    if notional < rule.min_notional_size:
+        # Increase amount to meet minimum notional
+        amount = (rule.min_notional_size / price).quantize(
+            rule.min_base_amount_increment
+        )
+    
+    return amount, price
+```
+
+## Related Classes
+
+- [ConnectorBase](/api/connector-base) - Uses TradingRule for order quantization
+- [StrategyBase](/api/strategy-base) - Validates orders against trading rules

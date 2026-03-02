@@ -1,0 +1,420 @@
+---
+title: Global Settings
+description: Configure global Hummingbot client settings and behavior
+---
+
+Global settings control how Hummingbot operates across all strategies. These settings are stored in `conf/conf_client.yml` and affect logging, notifications, rate limits, and more.
+
+## Client Configuration Map
+
+The global configuration is managed by the `ClientConfigMap` class, which defines all available settings.
+
+## Core Settings
+
+### Instance Identification
+
+```yaml
+instance_id: abc123def456789
+```
+
+A unique identifier for this Hummingbot instance, automatically generated on first run.
+
+<Info>
+The instance ID is used for metrics collection and distinguishing between multiple bot instances.
+</Info>
+
+### Logging Configuration
+
+<ParamField path="log_level" type="string" default="INFO">
+  Controls the verbosity of log output. Options: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`
+</ParamField>
+
+<ParamField path="log_file_path" type="string" default="logs/">
+  Directory where log files are stored
+</ParamField>
+
+<ParamField path="debug_console" type="boolean" default="false">
+  Enable debug-level logging in the console output
+</ParamField>
+
+```yaml Example Logging Config
+log_level: INFO
+log_file_path: logs/
+debug_console: false
+logger_override_whitelist:
+  - hummingbot.strategy.arbitrage
+  - hummingbot.strategy.cross_exchange_market_making
+  - conf
+```
+
+## Kill Switch
+
+The kill switch automatically stops trading when profit/loss reaches a certain threshold.
+
+<Tabs>
+  <Tab title="Disabled (Default)">
+    ```yaml
+    kill_switch_mode: kill_switch_disabled
+    ```
+  </Tab>
+  <Tab title="Enabled">
+    ```yaml
+    kill_switch_mode: kill_switch_enabled
+    kill_switch_rate: -10  # Stop at 10% loss
+    ```
+  </Tab>
+</Tabs>
+
+<ParamField path="kill_switch_rate" type="decimal">
+  Percentage profit/loss at which to stop the bot. Negative values represent losses (e.g., `-5` = stop at 5% loss, `10` = stop at 10% profit)
+</ParamField>
+
+<Warning>
+The kill switch monitors overall profit/loss from the start of the current session. It does not account for previous sessions or unrealized P&L.
+</Warning>
+
+## Rate Oracle
+
+The rate oracle provides price conversion rates for different tokens.
+
+<ParamField path="rate_oracle_source" type="string" default="binance">
+  Source for price rate data
+</ParamField>
+
+Available sources:
+- `binance` - Binance exchange (default)
+- `coin_gecko` - CoinGecko API
+- `coin_cap` - CoinCap API  
+- `kucoin` - KuCoin exchange
+- `gate_io` - Gate.io exchange
+- `mexc` - MEXC exchange
+- `coinbase_advanced_trade` - Coinbase
+
+### CoinGecko Configuration
+
+```yaml
+rate_oracle_source:
+  name: coin_gecko
+  extra_tokens: []
+  api_key: ""  # Optional - for higher rate limits
+  api_tier: PUBLIC  # PUBLIC, DEMO, or PRO
+```
+
+<Accordion title="CoinGecko API Tiers">
+- **PUBLIC**: Free tier, limited rate limits
+- **DEMO**: Demo API key tier
+- **PRO**: Professional tier with higher limits
+</Accordion>
+
+### CoinCap Configuration
+
+```yaml
+rate_oracle_source:
+  name: coin_cap
+  assets_map: "BTC:bitcoin,ETH:ethereum,USDT:tether"
+  api_key: ""  # Optional - improves rate limits
+```
+
+## Global Token Settings
+
+Define the default display token for valuation.
+
+```yaml
+global_token:
+  global_token_name: USDT
+  global_token_symbol: $
+```
+
+<ParamField path="global_token_name" type="string" default="USDT">
+  The token to use for displaying portfolio values (e.g., USDT, BTC, USD)
+</ParamField>
+
+<ParamField path="global_token_symbol" type="string" default="$">
+  Symbol to display with token values (e.g., $, €, ฿)
+</ParamField>
+
+## API Rate Limits
+
+```yaml
+rate_limits_share_pct: 100
+```
+
+<ParamField path="rate_limits_share_pct" type="decimal" default="100">
+  Percentage of exchange API rate limits to use (1-100). Set to `50` to use only half of available rate limits, useful when running multiple bot instances.
+</ParamField>
+
+<Tip>
+If you run multiple Hummingbot instances with the same exchange API keys, set this to split rate limits proportionally (e.g., 50% for each of 2 instances).
+</Tip>
+
+## Database Configuration
+
+Hummingbot stores trade data and state in a database.
+
+<Tabs>
+  <Tab title="SQLite (Default)">
+    ```yaml
+    db_mode: sqlite_db_engine
+    db_engine: sqlite
+    ```
+    SQLite stores data in a local file (simple, no setup required)
+  </Tab>
+  <Tab title="External Database">
+    ```yaml
+    db_mode: other_db_engine
+    db_engine: postgresql
+    db_host: 127.0.0.1
+    db_port: 5432
+    db_username: hummingbot
+    db_password: password123
+    db_name: hummingbot_db
+    ```
+    Connect to PostgreSQL, MySQL, or other SQLAlchemy-supported databases
+  </Tab>
+</Tabs>
+
+<Info>
+Refer to [SQLAlchemy dialects documentation](https://docs.sqlalchemy.org/en/13/dialects/) for supported database engines.
+</Info>
+
+## Gateway Configuration
+
+Settings for connecting to Hummingbot Gateway (for DEX trading).
+
+```yaml
+gateway:
+  gateway_api_host: localhost
+  gateway_api_port: "15888"
+  gateway_use_ssl: false
+```
+
+<ParamField path="gateway_api_host" type="string" default="localhost">
+  Gateway server hostname or IP address
+</ParamField>
+
+<ParamField path="gateway_api_port" type="string" default="15888">
+  Gateway server port
+</ParamField>
+
+<ParamField path="gateway_use_ssl" type="boolean" default="false">
+  Use HTTPS for Gateway connections
+</ParamField>
+
+## MQTT Bridge
+
+Connect Hummingbot to external systems via MQTT.
+
+```yaml
+mqtt_bridge:
+  mqtt_host: localhost
+  mqtt_port: 1883
+  mqtt_username: ""
+  mqtt_password: ""
+  mqtt_namespace: hbot
+  mqtt_ssl: false
+  mqtt_logger: true
+  mqtt_notifier: true
+  mqtt_commands: true
+  mqtt_events: true
+  mqtt_external_events: true
+  mqtt_autostart: false
+```
+
+<AccordionGroup>
+  <Accordion title="MQTT Connection Settings">
+    - `mqtt_host`: MQTT broker hostname
+    - `mqtt_port`: MQTT broker port (default 1883)
+    - `mqtt_username`: Authentication username
+    - `mqtt_password`: Authentication password
+    - `mqtt_namespace`: Topic namespace prefix
+    - `mqtt_ssl`: Enable SSL/TLS encryption
+  </Accordion>
+  
+  <Accordion title="MQTT Features">
+    - `mqtt_logger`: Send logs to MQTT
+    - `mqtt_notifier`: Send notifications to MQTT
+    - `mqtt_commands`: Accept commands via MQTT
+    - `mqtt_events`: Publish bot events to MQTT
+    - `mqtt_external_events`: Subscribe to external events
+    - `mqtt_autostart`: Start MQTT bridge on bot startup
+  </Accordion>
+</AccordionGroup>
+
+## Performance Settings
+
+### Tick Size
+
+```yaml
+tick_size: 1.0
+```
+
+<ParamField path="tick_size" type="float" default="1.0">
+  Frequency (in seconds) at which strategies execute their logic. Lower values = more frequent execution but higher CPU usage.
+</ParamField>
+
+<Warning>
+Setting tick_size below 1.0 second increases resource usage and may hit API rate limits more quickly.
+</Warning>
+
+### Command Timeouts
+
+```yaml
+commands_timeout:
+  create_command_timeout: 10
+  other_commands_timeout: 30
+```
+
+<ParamField path="create_command_timeout" type="decimal" default="10">
+  Network timeout (in seconds) when fetching minimum order amounts during strategy creation
+</ParamField>
+
+<ParamField path="other_commands_timeout" type="decimal" default="30">
+  Network timeout (in seconds) for other API calls
+</ParamField>
+
+## Metrics & Telemetry
+
+### Anonymized Metrics
+
+<Tabs>
+  <Tab title="Enabled (Default)">
+    ```yaml
+    anonymized_metrics_mode: anonymized_metrics_enabled
+    anonymized_metrics_interval_min: 15
+    ```
+  </Tab>
+  <Tab title="Disabled">
+    ```yaml
+    anonymized_metrics_mode: anonymized_metrics_disabled
+    ```
+  </Tab>
+</Tabs>
+
+<ParamField path="anonymized_metrics_interval_min" type="decimal" default="15">
+  How often (in minutes) to send anonymized trading metrics to Hummingbot Foundation
+</ParamField>
+
+<Info>
+Anonymized metrics help improve Hummingbot. No personal information or API keys are shared.
+</Info>
+
+### Error Logs
+
+```yaml
+send_error_logs: true
+```
+
+<ParamField path="send_error_logs" type="boolean" default="true">
+  Send error logs to Hummingbot developers to help identify and fix bugs
+</ParamField>
+
+## UI Settings
+
+### Table Format
+
+```yaml
+tables_format: psql
+```
+
+<ParamField path="tables_format" type="string" default="psql">
+  Display format for tables in the CLI. Options: `psql`, `grid`, `simple`, `plain`, `pipe`, `orgtbl`, `rst`, `mediawiki`, `html`, `latex`
+</ParamField>
+
+See [python-tabulate formats](https://github.com/astanin/python-tabulate#table-format) for examples.
+
+### Color Configuration
+
+```yaml
+color:
+  top_pane: "#000000"
+  bottom_pane: "#000000"
+  output_pane: "#262626"
+  input_pane: "#1C1C1C"
+  logs_pane: "#121212"
+  terminal_primary: "#5FFFD7"
+  primary_label: "#5FFFD7"
+  success_label: "#5FFFD7"
+  warning_label: "#FFFF00"
+  error_label: "#FF0000"
+```
+
+Customize terminal colors using hex color codes.
+
+## Autofill Import
+
+```yaml
+autofill_import: disabled
+```
+
+<ParamField path="autofill_import" type="string" default="disabled">
+  What to auto-fill after importing a strategy: `start`, `config`, or `disabled`
+</ParamField>
+
+## Market Data Collection
+
+```yaml
+market_data_collection:
+  market_data_collection_enabled: false
+  market_data_collection_interval: 60
+  market_data_collection_depth: 20
+```
+
+<ParamField path="market_data_collection_enabled" type="boolean" default="false">
+  Enable market data collection for analysis
+</ParamField>
+
+<ParamField path="market_data_collection_interval" type="integer" default="60">
+  Data collection interval in seconds
+</ParamField>
+
+<ParamField path="market_data_collection_depth" type="integer" default="20">
+  Order book depth to collect
+</ParamField>
+
+## Balance Limits
+
+Set maximum balance limits per exchange and asset:
+
+```yaml
+balance_asset_limit:
+  binance:
+    BTC: 0.1
+    USDT: 1000
+  kucoin:
+    ETH: 5
+```
+
+Use the `balance limit` command to set these dynamically.
+
+## Editing Global Settings
+
+<Steps>
+  <Step title="Stop Hummingbot">
+    Exit the bot if it's running
+  </Step>
+  <Step title="Edit Config File">
+    Open `conf/conf_client.yml` in a text editor
+  </Step>
+  <Step title="Save Changes">
+    Save the file with your modifications
+  </Step>
+  <Step title="Restart Hummingbot">
+    Launch Hummingbot to apply the new settings
+  </Step>
+</Steps>
+
+Alternatively, use the `config` command within Hummingbot to change settings interactively.
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Config Files" href="/configuration/config-files" icon="file">
+    Understanding configuration file structure
+  </Card>
+  <Card title="Paper Trading" href="/configuration/paper-trading" icon="flask">
+    Configure paper trading settings
+  </Card>
+  <Card title="Security" href="/configuration/security" icon="shield">
+    Secure your API keys and credentials
+  </Card>
+</CardGroup>

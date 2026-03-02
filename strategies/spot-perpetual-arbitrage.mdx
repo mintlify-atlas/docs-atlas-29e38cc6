@@ -1,0 +1,586 @@
+---
+title: Spot Perpetual Arbitrage
+description: Arbitrage strategy between spot and perpetual markets to profit from funding rates
+---
+
+## Overview
+
+Spot Perpetual Arbitrage captures price differences between spot markets and perpetual futures markets while earning or paying funding rates. This market-neutral strategy profits from basis spreads and funding rate inefficiencies.
+
+## How It Works
+
+1. **Detect Arbitrage Opportunity**: Compares spot and perpetual prices
+2. **Open Position**: When spread exceeds threshold, opens opposite positions on both markets
+3. **Hold for Funding**: Maintains position to collect funding payments
+4. **Close Position**: When convergence spread is met, closes both positions
+5. **Profit**: Captures initial spread + accumulated funding rates
+
+```python
+# From source: hummingbot/strategy/spot_perpetual_arbitrage/
+arb_pct = (perp_price - spot_price) / spot_price * 100
+
+if abs(arb_pct) >= min_opening_arbitrage_pct:
+    if arb_pct > 0:  # Perpetual premium
+        buy_spot()    # Long spot
+        sell_perp()   # Short perpetual
+    else:  # Spot premium
+        sell_spot()   # Short spot (if supported)
+        buy_perp()    # Long perpetual
+```
+
+<Info>
+Unlike directional trading, this strategy is market-neutral and profits from convergence, not price direction.
+</Info>
+
+## When to Use
+
+<CardGroup cols={2}>
+  <Card title="Ideal Conditions" icon="check">
+    - High funding rates (>0.1% per 8h)
+    - Persistent basis spread between spot/perp
+    - Low transaction costs
+    - Sufficient capital for both markets
+  </Card>
+  
+  <Card title="Avoid When" icon="xmark">
+    - Funding rates near zero
+    - High exchange withdrawal fees
+    - Limited capital (can't open both sides)
+    - Extreme volatility causing liquidation risk
+  </Card>
+</CardGroup>
+
+## Core Configuration Parameters
+
+### Market Setup
+
+<ParamField path="spot_connector" type="string" required>
+  Spot exchange connector
+  
+  **Examples**: `binance`, `coinbase_pro`, `kraken`
+</ParamField>
+
+<ParamField path="spot_market" type="string" required>
+  Spot trading pair in BASE-QUOTE format
+  
+  **Example**: `BTC-USDT`
+</ParamField>
+
+<ParamField path="perpetual_connector" type="string" required>
+  Derivative exchange connector
+  
+  **Examples**: `binance_perpetual`, `bybit_perpetual`, `dydx_perpetual`
+</ParamField>
+
+<ParamField path="perpetual_market" type="string" required>
+  Perpetual contract trading pair
+  
+  **Example**: `BTC-USDT` (perpetual contract)
+</ParamField>
+
+### Position Sizing
+
+<ParamField path="order_amount" type="decimal" required>
+  Order size in base asset for both spot and perpetual
+  
+  **Example**: `0.1` opens 0.1 BTC on spot and 0.1 BTC on perpetual
+  
+  <Warning>
+  Ensure sufficient balance on both exchanges to open positions.
+  </Warning>
+</ParamField>
+
+<ParamField path="perpetual_leverage" type="int" default="1">
+  Leverage for perpetual market position
+  
+  **Example**: `5` uses 5x leverage on perpetual side
+  
+  **Range**: Varies by exchange
+  
+  <Info>
+  Higher leverage reduces capital requirement on perpetual side but increases liquidation risk.
+  </Info>
+</ParamField>
+
+### Arbitrage Thresholds
+
+<ParamField path="min_opening_arbitrage_pct" type="decimal" default="1.0">
+  Minimum price difference percentage to open an arbitrage position. Enter `1` for 1%.
+  
+  **Example**: `0.3` opens position when spread ≥ 0.3%
+  
+  **Range**: -100% to 100%
+  
+  Should exceed: transaction costs + slippage + minimum desired profit
+</ParamField>
+
+<ParamField path="min_closing_arbitrage_pct" type="decimal" default="-0.1">
+  Minimum price difference to close existing position. Enter `1` for 1%.
+  
+  **Example**: `-0.1` closes when spread narrows to -0.1%
+  
+  **Range**: -100% to 100%
+  
+  <Note>
+  Can be negative to close positions even at a small loss, relying on accumulated funding to be profitable.
+  </Note>
+</ParamField>
+
+### Slippage Management
+
+<ParamField path="spot_market_slippage_buffer" type="decimal" default="0.05">
+  Slippage buffer for spot market orders. Enter `1` for 1%.
+  
+  **Example**: `0.1` adds 0.1% buffer to spot orders
+  
+  Protects against price movement during execution.
+</ParamField>
+
+<ParamField path="perpetual_market_slippage_buffer" type="decimal" default="0.05">
+  Slippage buffer for perpetual market orders. Enter `1` for 1%.
+  
+  **Example**: `0.1` adds 0.1% buffer to perpetual orders
+</ParamField>
+
+### Execution Control
+
+<ParamField path="next_arbitrage_opening_delay" type="float" default="120">
+  Seconds to wait before opening next arbitrage position
+  
+  **Example**: `300` waits 5 minutes between position opens
+  
+  Prevents over-trading and allows market to stabilize.
+</ParamField>
+
+## Example Configurations
+
+### Basic BTC Funding Arbitrage
+
+```yaml
+strategy: spot_perpetual_arbitrage
+spot_connector: binance
+spot_market: BTC-USDT
+perpetual_connector: binance_perpetual
+perpetual_market: BTC-USDT
+order_amount: 0.01
+perpetual_leverage: 3
+min_opening_arbitrage_pct: 0.5
+min_closing_arbitrage_pct: 0.1
+spot_market_slippage_buffer: 0.05
+perpetual_market_slippage_buffer: 0.05
+next_arbitrage_opening_delay: 300
+```
+
+This configuration:
+- Trades 0.01 BTC per arbitrage
+- Uses 3x leverage on perpetual
+- Opens when spread ≥ 0.5%
+- Closes when spread ≤ 0.1%
+- 5-minute delay between positions
+
+### Aggressive High-Frequency
+
+```yaml
+strategy: spot_perpetual_arbitrage
+spot_connector: binance
+spot_market: ETH-USDT
+perpetual_connector: binance_perpetual
+perpetual_market: ETH-USDT
+order_amount: 0.5
+perpetual_leverage: 5
+min_opening_arbitrage_pct: 0.2
+min_closing_arbitrage_pct: -0.05
+spot_market_slippage_buffer: 0.1
+perpetual_market_slippage_buffer: 0.1
+next_arbitrage_opening_delay: 60
+```
+
+Optimized for:
+- Tighter opening threshold (0.2%)
+- Negative closing threshold (closes even at small loss)
+- Higher leverage (5x) for capital efficiency
+- Faster cycling (60-second delay)
+- Relies on funding rate income
+
+### Conservative Long-Hold
+
+```yaml
+strategy: spot_perpetual_arbitrage
+spot_connector: coinbase_pro
+spot_market: BTC-USD
+perpetual_connector: bybit_perpetual
+perpetual_market: BTC-USDT
+order_amount: 0.05
+perpetual_leverage: 2
+min_opening_arbitrage_pct: 1.0
+min_closing_arbitrage_pct: 0.3
+spot_market_slippage_buffer: 0.2
+perpetual_market_slippage_buffer: 0.2
+next_arbitrage_opening_delay: 600
+```
+
+Features:
+- Wide opening threshold (1.0%)
+- Conservative closing (0.3%)
+- Low leverage (2x) for safety
+- Longer hold periods
+- Higher slippage buffers for safety
+
+## Strategy Mechanics
+
+### Position Opening Logic
+
+```python
+# Calculate basis spread
+spot_mid = (spot_bid + spot_ask) / 2
+perp_mid = (perp_bid + perp_ask) / 2
+spread_pct = (perp_mid - spot_mid) / spot_mid * 100
+
+if spread_pct >= min_opening_arbitrage_pct:
+    # Perpetual at premium (normal contango)
+    spot_position = buy_spot(order_amount, slippage_buffer)
+    perp_position = sell_perpetual(order_amount, leverage, slippage_buffer)
+    arb_type = "short_perp_long_spot"
+    
+elif spread_pct <= -min_opening_arbitrage_pct:
+    # Spot at premium (backwardation)
+    spot_position = sell_spot(order_amount, slippage_buffer)  # If supported
+    perp_position = buy_perpetual(order_amount, leverage, slippage_buffer)
+    arb_type = "long_perp_short_spot"
+```
+
+### Position Closing Logic
+
+```python
+# For existing position
+current_spread_pct = (perp_mid - spot_mid) / spot_mid * 100
+
+if arb_type == "short_perp_long_spot":
+    if current_spread_pct <= min_closing_arbitrage_pct:
+        close_spot_position()  # Sell spot
+        close_perp_position()  # Buy perpetual
+        
+elif arb_type == "long_perp_short_spot":
+    if current_spread_pct >= -min_closing_arbitrage_pct:
+        close_spot_position()  # Buy spot
+        close_perp_position()  # Sell perpetual
+```
+
+## Funding Rate Analysis
+
+### Understanding Funding Rates
+
+<Info>
+Funding rates are periodic payments between long and short perpetual contract holders:
+
+- **Positive Funding**: Perpetual > Spot → Longs pay shorts
+- **Negative Funding**: Spot > Perpetual → Shorts pay longs
+
+Typical interval: Every 8 hours (0.01% = ~10% APR)
+</Info>
+
+### Profit Calculation
+
+```python
+# Example arbitrage profit
+entry_spot = 50000    # USD
+entry_perp = 50200    # USD (0.4% premium)
+position_size = 1.0   # BTC
+
+# Open position
+profit_open = (entry_perp - entry_spot) * position_size
+# = 200 USD
+
+# Hold for 24 hours at 0.01% funding rate (3 payments)
+funding_rate = 0.0001
+funding_payments = entry_perp * position_size * funding_rate * 3
+# = 50200 * 1.0 * 0.0001 * 3 = 15.06 USD
+
+# Close position at 0.1% spread
+close_spot = 51000
+close_perp = 51051
+profit_close = (entry_perp - close_perp) - (close_spot - entry_spot)
+# = (50200 - 51051) - (51000 - 50000) = -851 - 1000 = -1851 USD
+# But we collected funding, so:
+
+total_profit = profit_open + funding_payments + profit_close
+# = 200 + 15.06 - 1851 = -1635.94 USD
+
+# This example shows importance of proper entry/exit thresholds!
+```
+
+### Optimal Funding Strategies
+
+<Tabs>
+  <Tab title="High Positive Funding">
+    **Market**: Perpetual trading at premium, longs pay shorts
+    
+    **Strategy**:
+    ```yaml
+    min_opening_arbitrage_pct: 0.3  # Open on smaller premium
+    min_closing_arbitrage_pct: -0.1 # Close when premium disappears
+    perpetual_leverage: 5           # Maximize funding income
+    ```
+    
+    **Position**: Long spot + Short perpetual
+    
+    **Income**: Initial spread + funding payments
+  </Tab>
+  
+  <Tab title="High Negative Funding">
+    **Market**: Spot at premium, shorts pay longs
+    
+    **Strategy**:
+    ```yaml
+    min_opening_arbitrage_pct: 0.3  # Open on backwardation
+    min_closing_arbitrage_pct: -0.1 # Close on convergence
+    perpetual_leverage: 5           # Maximize funding income
+    ```
+    
+    **Position**: Short spot + Long perpetual (if spot shorting available)
+    
+    **Income**: Initial spread + funding payments
+  </Tab>
+  
+  <Tab title="Neutral Funding">
+    **Market**: Funding near 0%
+    
+    **Strategy**:
+    ```yaml
+    min_opening_arbitrage_pct: 1.0  # Require larger spread
+    min_closing_arbitrage_pct: 0.3  # Don't rely on funding
+    perpetual_leverage: 2           # Lower risk
+    ```
+    
+    **Focus**: Capture basis spread, not funding
+  </Tab>
+</Tabs>
+
+## Risk Management
+
+<Warning>
+**Major Risks**:
+- **Liquidation Risk**: Perpetual position can be liquidated in volatile markets
+- **Funding Risk**: Funding rates can flip, making position unprofitable
+- **Convergence Risk**: Spread may not converge as expected
+- **Exchange Risk**: Outage on one exchange prevents closing position
+- **Withdrawal Risk**: High fees to rebalance between exchanges
+</Warning>
+
+### Risk Mitigation Strategies
+
+<AccordionGroup>
+  <Accordion title="Set Appropriate Leverage">
+    Calculate safe leverage based on volatility:
+    
+    ```python
+    max_safe_leverage = 1 / (2 * daily_volatility)
+    
+    # Example: BTC 3% daily volatility
+    max_safe_leverage = 1 / (2 * 0.03) = 16.67x
+    
+    # Use 50% of max for safety
+    recommended_leverage = 16.67 * 0.5 = 8x
+    ```
+    
+    Start with 2-3x regardless of calculation.
+  </Accordion>
+  
+  <Accordion title="Monitor Funding Continuously">
+    Track funding rate changes:
+    
+    ```bash
+    # Check current funding
+    status --funding_rate
+    
+    # If funding flips against your position:
+    # - Close position early, OR
+    # - Adjust min_closing_arbitrage_pct
+    ```
+  </Accordion>
+  
+  <Accordion title="Maintain Excess Margin">
+    Keep margin ratio > 50%:
+    
+    ```yaml
+    # For $10,000 total capital
+    order_amount: 0.05  # ~$2,500 at $50k BTC
+    perpetual_leverage: 3  # Uses $833 margin
+    # Margin ratio = $10,000 / $833 = 1200% ✓
+    ```
+  </Accordion>
+  
+  <Accordion title="Use Exchange with Low Withdrawal Fees">
+    Factor in rebalancing costs:
+    
+    | Exchange | Withdrawal Fee | Impact on Min Profitability |
+    |----------|----------------|-----------------------------|
+    | Binance | 0.0005 BTC | +$25 @ $50k |
+    | Coinbase | 0.00001 BTC | +$0.50 @ $50k |
+    | Kraken | 0.00015 BTC | +$7.50 @ $50k |
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Techniques
+
+### Multi-Position Management
+
+<Note>
+The strategy opens one arbitrage position at a time. For multiple positions:
+
+1. Run multiple Hummingbot instances
+2. Use different `order_amount` values
+3. Stagger `next_arbitrage_opening_delay` times
+</Note>
+
+### Dynamic Threshold Adjustment
+
+Adjust thresholds based on funding:
+
+```yaml
+# High funding scenario (>0.05% per 8h)
+min_opening_arbitrage_pct: 0.2   # Aggressive entry
+min_closing_arbitrage_pct: -0.2  # Hold longer for funding
+
+# Low funding scenario (<0.01% per 8h)
+min_opening_arbitrage_pct: 0.8   # Conservative entry
+min_closing_arbitrage_pct: 0.2   # Close on convergence
+```
+
+### Cross-Exchange Optimization
+
+<Tabs>
+  <Tab title="Same Exchange (Binance)">
+    ```yaml
+    spot_connector: binance
+    perpetual_connector: binance_perpetual
+    ```
+    
+    **Pros**:
+    - No withdrawal fees for rebalancing
+    - Unified margin (if cross-margin enabled)
+    - Faster execution
+    
+    **Cons**:
+    - Exchange risk concentration
+  </Tab>
+  
+  <Tab title="Different Exchanges">
+    ```yaml
+    spot_connector: coinbase_pro
+    perpetual_connector: bybit_perpetual
+    ```
+    
+    **Pros**:
+    - Diversified exchange risk
+    - Access to better spot/perp pricing
+    
+    **Cons**:
+    - Withdrawal fees for rebalancing
+    - Slower arbitrage closure
+  </Tab>
+</Tabs>
+
+## Performance Optimization
+
+### Calculating Minimum Profitability
+
+```python
+# Account for all costs
+spot_fee = 0.001          # 0.1%
+perp_fee = 0.0005         # 0.05%
+slippage = 0.001          # 0.1% each side
+withdrawal_cost = 25      # $25 to rebalance
+position_size_usd = 5000  # $5000 position
+
+total_fees_pct = (spot_fee + perp_fee + slippage * 2) * 100
+# = 0.35%
+
+withdrawal_pct = (withdrawal_cost / position_size_usd) * 100
+# = 0.5%
+
+min_opening_threshold = total_fees_pct + withdrawal_pct + desired_profit_pct
+# = 0.35% + 0.5% + 0.3% = 1.15%
+```
+
+Set `min_opening_arbitrage_pct: 1.2` to ensure profitability.
+
+### Optimal Position Sizing
+
+```yaml
+# Calculate based on funding income target
+target_daily_income = 50        # $50 per day
+avg_funding_rate = 0.0001       # 0.01% per 8h
+funding_periods = 3             # 3 times per day
+
+required_position = target_daily_income / (avg_funding_rate * funding_periods)
+# = 50 / (0.0001 * 3) = $166,667
+
+# At BTC = $50,000
+order_amount = 166667 / 50000 = 3.33 BTC
+```
+
+## Tips for Success
+
+<AccordionGroup>
+  <Accordion title="Start Small and Scale">
+    Begin with minimum position sizes:
+    ```yaml
+    order_amount: 0.01  # $500 at $50k BTC
+    perpetual_leverage: 2
+    ```
+    
+    After 1 week profitable → increase by 50%
+    After 1 month profitable → scale to target size
+  </Accordion>
+  
+  <Accordion title="Monitor Both Markets">
+    Track metrics:
+    - Spot balance
+    - Perpetual margin ratio
+    - Funding rate history
+    - Open position P&L
+    
+    ```bash
+    balance --spot binance
+    balance --derivative binance_perpetual
+    ```
+  </Accordion>
+  
+  <Accordion title="Rebalance Regularly">
+    Transfer profits weekly:
+    1. Close all positions
+    2. Withdraw excess from perpetual
+    3. Rebalance spot/perpetual allocations
+    4. Resume strategy
+  </Accordion>
+  
+  <Accordion title="Use Historical Data">
+    Backtest thresholds using historical spreads:
+    
+    ```python
+    import pandas as pd
+    
+    # Analyze typical spread ranges
+    spread_data = load_historical_basis()
+    p75 = spread_data.quantile(0.75)  # 75th percentile
+    
+    # Set opening threshold at 75th percentile
+    min_opening_arbitrage_pct = p75
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Source Code Reference
+
+Configuration: `/source/hummingbot/strategy/spot_perpetual_arbitrage/spot_perpetual_arbitrage_config_map.py:56`
+
+Strategy Implementation: `/source/hummingbot/strategy/spot_perpetual_arbitrage/spot_perpetual_arbitrage.py`
+
+Proposal Logic: `/source/hummingbot/strategy/spot_perpetual_arbitrage/arb_proposal.py`
+
+## Related Strategies
+
+- [AMM Arbitrage](/strategies/amm-arbitrage): Spot to AMM arbitrage
+- [Perpetual Market Making](/strategies/perpetual-market-making): Pure market making on perpetuals
+- [Cross Exchange Market Making](/strategies/cross-exchange-market-making): Market making with hedging

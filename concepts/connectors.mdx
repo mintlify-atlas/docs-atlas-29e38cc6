@@ -1,0 +1,208 @@
+---
+title: Connectors
+description: Understanding Hummingbot exchange connectors and their architecture
+---
+
+## Overview
+
+Connectors are Hummingbot's standardized interfaces to exchanges, abstracting the differences between REST APIs, WebSocket feeds, and trading protocols. They enable strategies to interact with multiple exchanges using a unified API.
+
+## Connector Architecture
+
+All exchange connectors inherit from a base class that provides common functionality:
+
+```python
+class ExchangePyBase(ExchangeBase, ABC):
+    SHORT_POLL_INTERVAL = 5.0
+    LONG_POLL_INTERVAL = 120.0
+    TRADING_RULES_INTERVAL = 30 * MINUTE
+    TRADING_FEES_INTERVAL = TWELVE_HOURS
+    
+    def __init__(self, 
+                 balance_asset_limit: Optional[Dict[str, Dict[str, Decimal]]] = None,
+                 rate_limits_share_pct: Decimal = Decimal("100")):
+        # Initialize connector components
+        self._time_synchronizer = TimeSynchronizer()
+        self._throttler = AsyncThrottler(rate_limits=self.rate_limits_rules)
+        self._auth: AuthBase = self.authenticator
+        self._web_assistants_factory = self._create_web_assistants_factory()
+        self._orderbook_ds = self._create_order_book_data_source()
+        self._order_tracker = self._create_order_tracker()
+```
+
+Source: `hummingbot/connector/exchange_py_base.py:37-84`.
+
+### Core Connector Components
+
+<Steps>
+  <Step title="Authentication">
+    Handles API key signing and request authentication
+    
+    ```python
+    @property
+    @abstractmethod
+    def authenticator(self) -> AuthBase:
+        raise NotImplementedError
+    ```
+  </Step>
+  
+  <Step title="Order Book Data Source">
+    Manages WebSocket connections for real-time order book updates
+    
+    - Subscribes to order book snapshots and diffs
+    - Handles order book message parsing
+    - Maintains order book state
+  </Step>
+  
+  <Step title="Order Tracker">
+    Tracks in-flight orders and their state transitions
+    
+    ```python
+    self._order_tracker: ClientOrderTracker = self._create_order_tracker()
+    ```
+  </Step>
+  
+  <Step title="Trading Rules">
+    Stores exchange-specific trading constraints
+    
+    ```python
+    class TradingRule:
+        trading_pair: str
+        min_order_size: Decimal
+        max_order_size: Decimal
+        min_price_increment: Decimal
+        min_base_amount_increment: Decimal
+        min_notional_size: Decimal
+        supports_limit_orders: bool
+        supports_market_orders: bool
+    ```
+    
+    Source: `hummingbot/connector/trading_rule.pyx:11-40`.
+  </Step>
+  
+  <Step title="Rate Limiting">
+    Enforces API rate limits to prevent throttling
+    
+    ```python
+    self._throttler = AsyncThrottler(
+        rate_limits=self.rate_limits_rules,
+        limits_share_percentage=rate_limits_share_pct
+    )
+    ```
+  </Step>
+</Steps>
+
+## Connector Types by Exchange Architecture
+
+Hummingbot categorizes connectors by exchange type and market structure. See [Exchange Types](/concepts/exchange-types) for details on CLOB CEX, CLOB DEX, and AMM DEX.
+
+### CLOB CEX Connectors
+
+Centralized exchange connectors connect via REST API and WebSocket:
+
+- **Authentication**: API key + secret
+- **Order Book**: Real-time WebSocket feeds
+- **Balance Management**: Exchange-custodied funds
+- **Examples**: Binance, OKX, Bybit, KuCoin
+
+### CLOB DEX Connectors
+
+Decentralized exchanges with on-chain order books:
+
+- **Authentication**: Wallet private key
+- **Order Book**: On-chain or hybrid (off-chain matching, on-chain settlement)
+- **Balance Management**: Non-custodial wallet
+- **Examples**: dYdX, Hyperliquid, Injective, Vertex
+
+### AMM DEX Connectors (Gateway)
+
+AMM connectors use the Gateway middleware to interact with DeFi protocols:
+
+```python
+class GatewayBase(ConnectorBase):
+    """
+    Base class for Gateway-based connectors (AMM DEXs)
+    Communicates with Gateway middleware via HTTP/HTTPS
+    """
+```
+
+- **Authentication**: Wallet private key (managed by Gateway)
+- **Order Book**: Simulated from AMM pool state
+- **Balance Management**: On-chain wallet balance
+- **Examples**: Uniswap, PancakeSwap, Raydium, Curve
+
+Source: `hummingbot/connector/gateway/gateway_base.py`.
+
+## Connector Lifecycle
+
+<Steps>
+  <Step title="Initialization">
+    Connector is created with API credentials and trading pairs
+  </Step>
+  
+  <Step title="Network Check">
+    Verifies connectivity to exchange API endpoints
+    
+    ```python
+    @property
+    @abstractmethod
+    def check_network_request_path(self) -> str:
+        raise NotImplementedError
+    ```
+  </Step>
+  
+  <Step title="Trading Rules Update">
+    Fetches exchange-specific trading constraints (min order size, tick size, etc.)
+    
+    Runs every 30 minutes: `TRADING_RULES_INTERVAL = 30 * MINUTE`
+  </Step>
+  
+  <Step title="Order Book Subscription">
+    Subscribes to WebSocket feeds for real-time market data
+  </Step>
+  
+  <Step title="User Stream Subscription">
+    Subscribes to private WebSocket feeds for order updates and fills
+  </Step>
+  
+  <Step title="Status Polling">
+    Periodically polls for account balances and open orders
+    
+    - Short poll: every 5 seconds
+    - Long poll: every 2 minutes
+  </Step>
+</Steps>
+
+## Connector Development
+
+To create a new connector, implement the abstract methods:
+
+```python
+class MyExchangeConnector(ExchangePyBase):
+    @property
+    def name(self) -> str:
+        return "my_exchange"
+    
+    @property
+    def rate_limits_rules(self) -> List[RateLimit]:
+        return [
+            RateLimit(limit_id="orders", limit=10, time_interval=1),
+            RateLimit(limit_id="trades", limit=20, time_interval=1),
+        ]
+    
+    @property
+    def trading_pairs_request_path(self) -> str:
+        return "/api/v1/symbols"
+    
+    @property
+    def trading_rules_request_path(self) -> str:
+        return "/api/v1/exchangeInfo"
+```
+
+Source: `hummingbot/connector/exchange_py_base.py:91-150`.
+
+## Related Concepts
+
+- [Exchange Types](/concepts/exchange-types) - CLOB CEX, CLOB DEX, AMM DEX
+- [Order Types](/concepts/order-types) - Market, limit, and other order types
+- [Market Data](/concepts/market-data) - Order book and trade data structures

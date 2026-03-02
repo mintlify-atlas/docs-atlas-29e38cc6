@@ -1,0 +1,351 @@
+---
+title: 'Gateway Installation'
+description: 'Install and deploy Gateway middleware alongside Hummingbot using Docker'
+keywords: ['gateway', 'installation', 'docker', 'setup', 'deployment']
+icon: 'download'
+---
+
+Gateway runs as a separate service alongside Hummingbot. The easiest way to install both is using Docker Compose.
+
+## Prerequisites
+
+Before installing Gateway, ensure you have:
+
+- [Docker](https://docs.docker.com/get-docker/) installed and running
+- [Docker Compose](https://docs.docker.com/compose/install/) installed
+- At least 4GB of available RAM
+- A wallet with private keys for the chains you want to trade on
+
+<Warning>
+Gateway requires access to blockchain nodes via RPC endpoints. Ensure you have reliable RPC access for your target chains, either through public endpoints or your own node infrastructure.
+</Warning>
+
+## Installation with Hummingbot
+
+The simplest way to install Gateway is during the Hummingbot setup process.
+
+### Step 1: Clone the Repository
+
+Clone the Hummingbot repository:
+
+```bash
+git clone https://github.com/hummingbot/hummingbot.git
+cd hummingbot
+```
+
+### Step 2: Run Setup with Gateway
+
+Run the setup script and answer `y` when prompted to include Gateway:
+
+```bash
+make setup
+```
+
+You'll see the following prompt:
+
+```bash
+Include Gateway? [y/N]
+```
+
+Type `y` and press Enter to include Gateway in your deployment.
+
+<Info>
+The setup script will automatically configure the `docker-compose.yml` file to include both Hummingbot and Gateway services.
+</Info>
+
+### Step 3: Deploy the Containers
+
+Start both Hummingbot and Gateway:
+
+```bash
+make deploy
+```
+
+This command will:
+- Pull the latest Hummingbot and Gateway Docker images
+- Create necessary configuration directories
+- Start both containers
+- Set up networking between Hummingbot and Gateway
+
+### Step 4: Attach to Hummingbot
+
+Once the containers are running, attach to the Hummingbot client:
+
+```bash
+docker attach hummingbot
+```
+
+## Verifying the Installation
+
+After installation, verify that Gateway is running correctly:
+
+<Steps>
+  <Step title="Check Gateway Status">
+    In the Hummingbot client, run:
+    
+    ```bash
+    gateway status
+    ```
+    
+    You should see output indicating Gateway is online and connected.
+  </Step>
+  
+  <Step title="List Available Connectors">
+    Check which Gateway connectors are available:
+    
+    ```bash
+    gateway list
+    ```
+    
+    This displays all supported chains and DEX protocols.
+  </Step>
+  
+  <Step title="Test Connection">
+    Test connectivity to a specific chain:
+    
+    ```bash
+    gateway test-connection ethereum
+    ```
+  </Step>
+</Steps>
+
+## Development vs Production Modes
+
+Gateway can run in two different modes:
+
+<Tabs>
+  <Tab title="Development Mode (Default)">
+    ### Development Mode
+    
+    By default, Gateway starts in development mode with these characteristics:
+    
+    - **Protocol**: Unencrypted HTTP
+    - **Port**: 15888
+    - **Authentication**: None
+    - **Certificates**: Not required
+    
+    <Warning>
+    Development mode is **not secure** and should only be used for testing on local networks. Your wallet private keys are accessible via unencrypted HTTP requests.
+    </Warning>
+    
+    **When to use:**
+    - Local development and testing
+    - Learning how Gateway works
+    - Running on trusted local networks
+  </Tab>
+  
+  <Tab title="Production Mode">
+    ### Production Mode
+    
+    For production deployments, enable HTTPS mode with certificate-based authentication:
+    
+    - **Protocol**: Encrypted HTTPS
+    - **Port**: 15888 (configurable)
+    - **Authentication**: Client certificates required
+    - **Certificates**: CA, client cert, and client key
+    
+    **When to use:**
+    - Production trading
+    - Remote deployments
+    - Any environment with real funds
+    
+    See [Configuration](/gateway/configuration) for setup instructions.
+  </Tab>
+</Tabs>
+
+## Switching to Production Mode
+
+To enable production mode with HTTPS:
+
+<Steps>
+  <Step title="Generate Certificates">
+    From within Hummingbot, generate SSL certificates:
+    
+    ```bash
+    gateway generate-certs
+    ```
+    
+    This creates the necessary certificate files in the `certs/` directory.
+  </Step>
+  
+  <Step title="Set Environment Variable">
+    Stop the containers and set the `DEV` flag to `false`:
+    
+    ```bash
+    docker-compose down
+    export DEV=false
+    docker-compose up -d
+    ```
+  </Step>
+  
+  <Step title="Verify HTTPS Mode">
+    Restart Hummingbot and verify Gateway is using HTTPS:
+    
+    ```bash
+    gateway status
+    ```
+    
+    The status should indicate HTTPS connectivity.
+  </Step>
+</Steps>
+
+<Note>
+The `generate-certs` command creates:
+- `ca_cert.pem` - Certificate Authority certificate
+- `client_cert.pem` - Client certificate
+- `client_key.pem` - Client private key
+
+These files are automatically used when Gateway runs in production mode.
+</Note>
+
+## Manual Installation
+
+If you need to install Gateway separately or from source:
+
+### Install from Source
+
+```bash
+# Clone the Gateway repository
+git clone https://github.com/hummingbot/gateway.git
+cd gateway
+
+# Install dependencies
+yarn install
+
+# Build the project
+yarn build
+
+# Start Gateway
+yarn start
+```
+
+### Docker Standalone
+
+Run Gateway as a standalone Docker container:
+
+```bash
+docker run -d \
+  --name gateway \
+  -p 15888:15888 \
+  -v $(pwd)/conf:/home/gateway/conf \
+  -v $(pwd)/certs:/home/gateway/certs \
+  hummingbot/gateway:latest
+```
+
+## Directory Structure
+
+After installation, Gateway uses the following directory structure:
+
+```
+hummingbot/
+├── conf/
+│   └── connectors/          # Connector configurations
+├── certs/                   # SSL certificates (production mode)
+│   ├── ca_cert.pem
+│   ├── client_cert.pem
+│   └── client_key.pem
+├── logs/
+│   └── gateway_logs/        # Gateway log files
+└── docker-compose.yml       # Docker configuration
+```
+
+## Updating Gateway
+
+To update to the latest Gateway version:
+
+```bash
+# Stop containers
+docker-compose down
+
+# Pull latest images
+docker-compose pull
+
+# Restart containers
+docker-compose up -d
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Gateway shows as offline">
+    Check that the Gateway container is running:
+    
+    ```bash
+    docker ps | grep gateway
+    ```
+    
+    View Gateway logs:
+    
+    ```bash
+    docker logs gateway
+    ```
+    
+    Verify network connectivity between containers:
+    
+    ```bash
+    docker network inspect hummingbot_default
+    ```
+  </Accordion>
+  
+  <Accordion title="Connection refused errors">
+    This usually indicates:
+    - Gateway container is not running
+    - Port 15888 is blocked or already in use
+    - Firewall rules blocking communication
+    
+    Verify the port is accessible:
+    
+    ```bash
+    curl http://localhost:15888
+    ```
+  </Accordion>
+  
+  <Accordion title="Certificate errors in production mode">
+    Ensure certificates were generated correctly:
+    
+    ```bash
+    ls -la certs/
+    ```
+    
+    You should see `ca_cert.pem`, `client_cert.pem`, and `client_key.pem`.
+    
+    If missing, regenerate:
+    
+    ```bash
+    gateway generate-certs
+    ```
+  </Accordion>
+  
+  <Accordion title="Memory or performance issues">
+    Gateway requires adequate resources. Increase Docker memory allocation:
+    
+    - Docker Desktop: Settings → Resources → Memory (minimum 4GB)
+    - Linux: Modify Docker daemon settings
+    
+    Monitor resource usage:
+    
+    ```bash
+    docker stats gateway
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/gateway/configuration">
+    Configure wallets, chains, and connectors
+  </Card>
+  
+  <Card title="Supported Chains" icon="link" href="/gateway/supported-chains">
+    View all available blockchains and DEXs
+  </Card>
+  
+  <Card title="CLI Commands" icon="terminal" href="/cli/overview">
+    Learn Gateway-related CLI commands
+  </Card>
+  
+  <Card title="AMM Arbitrage Strategy" icon="chart-line" href="/strategies/amm-arbitrage">
+    Start trading on DEXs
+  </Card>
+</CardGroup>

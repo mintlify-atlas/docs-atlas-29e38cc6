@@ -1,0 +1,423 @@
+---
+title: Paper Trading Mode
+description: Test strategies without risking real funds using Hummingbot's paper trading mode
+---
+
+Paper trading mode allows you to test trading strategies with simulated funds on real market data. This is perfect for testing new strategies, learning Hummingbot, or experimenting with parameters without financial risk.
+
+## Overview
+
+Paper trading mode creates a simulated trading environment that:
+- Uses **real-time market data** from exchanges
+- Executes **simulated orders** that don't hit actual exchange APIs
+- Maintains a **virtual balance** you can configure
+- Mimics real trading behavior including order fills and market dynamics
+
+<Info>
+Paper trading is sometimes called "simulation mode" or "backtesting" - though Hummingbot's paper trading runs in real-time, not on historical data.
+</Info>
+
+## Configuration
+
+### Enable Paper Trading
+
+Paper trading settings are configured in `conf/conf_client.yml`:
+
+```yaml Paper Trade Config
+paper_trade:
+  paper_trade_exchanges:
+    - binance
+    - kucoin
+    - kraken
+    - gate_io
+  paper_trade_account_balance:
+    BTC: 1
+    USDT: 100000
+    USDC: 100000
+    ETH: 20
+    WETH: 20
+    SOL: 100
+    DOGE: 1000000
+    HBOT: 10000000
+```
+
+<ParamField path="paper_trade_exchanges" type="array">
+  List of exchanges available for paper trading. These don't require API keys.
+</ParamField>
+
+<ParamField path="paper_trade_account_balance" type="object">
+  Virtual starting balances for different assets. Set these based on your testing needs.
+</ParamField>
+
+### Supported Paper Trade Exchanges
+
+By default, these exchanges are available for paper trading:
+
+<CardGroup cols={2}>
+  <Card title="Binance" icon="b">
+    Spot trading simulation
+  </Card>
+  <Card title="KuCoin" icon="k">
+    Spot trading simulation
+  </Card>
+  <Card title="Kraken" icon="k">
+    Spot trading simulation
+  </Card>
+  <Card title="Gate.io" icon="g">
+    Spot trading simulation
+  </Card>
+</CardGroup>
+
+<Tip>
+You can add any exchange to `paper_trade_exchanges` as long as it supports public market data without authentication.
+</Tip>
+
+### Setting Virtual Balances
+
+You can customize your virtual balances to match your testing scenario:
+
+<Tabs>
+  <Tab title="Conservative">
+    ```yaml
+    paper_trade_account_balance:
+      BTC: 0.1
+      USDT: 10000
+      ETH: 2
+    ```
+  </Tab>
+  <Tab title="Moderate">
+    ```yaml
+    paper_trade_account_balance:
+      BTC: 1
+      USDT: 100000
+      ETH: 20
+      SOL: 100
+    ```
+  </Tab>
+  <Tab title="Aggressive">
+    ```yaml
+    paper_trade_account_balance:
+      BTC: 10
+      USDT: 1000000
+      ETH: 200
+      SOL: 1000
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+The balances are stored as JSON and must use valid syntax. Use the format: `{"SYMBOL": amount, "SYMBOL2": amount}`
+</Note>
+
+## Using Paper Trading
+
+### Starting a Paper Trade Strategy
+
+When creating a strategy, select a paper trade exchange:
+
+```
+>>> create
+
+What is your market making strategy?
+>>> pure_market_making
+
+Enter your maker spot connector:
+>>> binance_paper_trade
+
+Enter the trading pair:
+>>> BTC-USDT
+```
+
+Notice the `_paper_trade` suffix on the exchange name.
+
+<Steps>
+  <Step title="Create Strategy">
+    Use the `create` command and select your strategy
+  </Step>
+  <Step title="Select Paper Trade Exchange">
+    Choose an exchange with `_paper_trade` suffix (e.g., `binance_paper_trade`)
+  </Step>
+  <Step title="Configure Parameters">
+    Set your strategy parameters as normal
+  </Step>
+  <Step title="Start Trading">
+    Run `start` to begin paper trading
+  </Step>
+</Steps>
+
+### Connecting to Paper Trade Exchanges
+
+Paper trade exchanges don't require API keys:
+
+```
+>>> connect binance_paper_trade
+
+You are using the paper trade mode for binance.
+No API credentials required.
+```
+
+## How Paper Trading Works
+
+### Order Simulation
+
+Paper trading simulates order execution based on real market conditions:
+
+<AccordionGroup>
+  <Accordion title="Order Placement">
+    When you place an order in paper trading:
+    1. The order is stored in Hummingbot's internal database
+    2. Real market data is fetched from the exchange
+    3. No actual API call is made to the exchange
+  </Accordion>
+  
+  <Accordion title="Order Fills">
+    Orders are filled when:
+    - Market price crosses your limit order price
+    - Sufficient volume exists at that price level
+    - Order book depth indicates the order would fill
+    
+    Fill simulation mimics real trading conditions including partial fills.
+  </Accordion>
+  
+  <Accordion title="Balance Updates">
+    When an order fills:
+    - Virtual balances are updated accordingly
+    - Trading fees are deducted (using exchange's default fee structure)
+    - P&L is calculated based on execution prices
+  </Accordion>
+</AccordionGroup>
+
+### Market Data
+
+Paper trading uses **real-time market data**:
+- Live order book snapshots
+- Current market prices
+- Actual trading volumes
+- Real spread and liquidity conditions
+
+<Warning>
+Because paper trading uses real market data, you need an internet connection and the exchange's public API must be accessible.
+</Warning>
+
+## Implementation Details
+
+### Paper Trade Connector
+
+From the source code (`hummingbot/client/settings.py`):
+
+```python
+class AllConnectorSettings:
+    @classmethod
+    def initialize_paper_trade_settings(cls, paper_trade_exchanges: List[str]):
+        """Initialize paper trade connectors based on real exchange settings"""
+        cls.paper_trade_connectors_names = paper_trade_exchanges
+        
+        for exchange in paper_trade_exchanges:
+            base_connector = cls.all_connector_settings.get(exchange)
+            if base_connector:
+                # Create paper trade version
+                paper_trade_settings = ConnectorSetting(
+                    name=f"{exchange}_paper_trade",
+                    type=base_connector.type,
+                    centralised=base_connector.centralised,
+                    example_pair=base_connector.example_pair,
+                    use_ethereum_wallet=base_connector.use_ethereum_wallet,
+                    trade_fee_schema=base_connector.trade_fee_schema,
+                    config_keys=base_connector.config_keys,
+                    parent_name=base_connector.name,
+                    # ... other settings
+                )
+                cls.all_connector_settings[f"{exchange}_paper_trade"] = paper_trade_settings
+```
+
+### Configuration Validation
+
+From `client_config_map.py`:
+
+```python
+class PaperTradeConfigMap(BaseClientModel):
+    paper_trade_exchanges: List = Field(
+        default=[
+            BinanceConfigMap.model_config["title"],
+            KuCoinConfigMap.model_config["title"],
+            KrakenConfigMap.model_config["title"],
+            GateIOConfigMap.model_config["title"],
+        ],
+    )
+    
+    paper_trade_account_balance: Dict[str, float] = Field(
+        default={
+            "BTC": 1,
+            "USDT": 100000,
+            "USDC": 100000,
+            "ETH": 20,
+            "WETH": 20,
+            "SOL": 100,
+            "DOGE": 1000000,
+            "HBOT": 10000000,
+        },
+        json_schema_extra={"prompt": lambda cm: (
+            "Enter paper trade balance settings (Input must be valid json — "
+            "e.g. {\"ETH\": 10, \"USDC\": 50000})"
+        )},
+    )
+```
+
+## Advantages of Paper Trading
+
+<CardGroup cols={2}>
+  <Card title="Risk-Free Testing" icon="shield-check">
+    Test strategies without risking real capital
+  </Card>
+  <Card title="Real Market Data" icon="chart-line">
+    Practice with live market conditions and prices
+  </Card>
+  <Card title="No API Keys Needed" icon="key">
+    Start testing immediately without exchange accounts
+  </Card>
+  <Card title="Unlimited Funds" icon="sack-dollar">
+    Configure any virtual balance amount for testing
+  </Card>
+  <Card title="Strategy Validation" icon="clipboard-check">
+    Verify strategy logic before live deployment
+  </Card>
+  <Card title="Parameter Tuning" icon="sliders">
+    Experiment with different settings risk-free
+  </Card>
+</CardGroup>
+
+## Limitations
+
+<Warning>
+**Paper Trading Limitations**:
+
+1. **Order fills are simulated** - May not perfectly reflect real execution
+2. **No slippage modeling** - Large orders may fill unrealistically well
+3. **No queue position** - Assumes instant fills when price is touched
+4. **Simplified fee structure** - Uses default exchange fees
+5. **No API rate limits** - Real trading has rate limit constraints
+6. **No real money emotions** - Psychology differs when trading real funds
+</Warning>
+
+## Best Practices
+
+<Steps>
+  <Step title="Always Paper Trade First">
+    Test every new strategy in paper trading mode before going live
+  </Step>
+  <Step title="Use Realistic Balances">
+    Set virtual balances similar to what you'd actually trade with
+  </Step>
+  <Step title="Monitor Performance">
+    Track paper trading results over multiple market conditions
+  </Step>
+  <Step title="Test Edge Cases">
+    Try extreme market conditions, high volatility, low liquidity
+  </Step>
+  <Step title="Document Results">
+    Keep notes on what works and what doesn't
+  </Step>
+  <Step title="Transition Gradually">
+    Start live trading with small amounts before scaling up
+  </Step>
+</Steps>
+
+## Switching Between Paper and Live Trading
+
+### From Paper to Live Trading
+
+<Steps>
+  <Step title="Stop Paper Trading">
+    Use the `stop` command to halt your paper trading strategy
+  </Step>
+  <Step title="Connect Real Exchange">
+    Use `connect binance` (without `_paper_trade` suffix) and enter API credentials
+  </Step>
+  <Step title="Create Live Strategy">
+    Create a new strategy using the real exchange connector
+  </Step>
+  <Step title="Start with Small Amounts">
+    Begin with reduced position sizes for safety
+  </Step>
+</Steps>
+
+### From Live to Paper Trading
+
+Simply create a new strategy using the `_paper_trade` exchange variant.
+
+## Monitoring Paper Trading Performance
+
+Use Hummingbot's standard commands to monitor paper trading:
+
+```
+>>> status
+>>> history
+>>> pnl
+>>> balance
+```
+
+All commands work identically in paper trading mode.
+
+## Configuring Paper Trade Balances Programmatically
+
+You can update paper trade balances via the config file:
+
+```python
+from hummingbot.client.config.config_helpers import (
+    load_client_config_map_from_file,
+    save_to_yml,
+)
+from hummingbot.client.settings import CLIENT_CONFIG_PATH
+
+# Load config
+client_config = load_client_config_map_from_file()
+
+# Update paper trade balances
+client_config.paper_trade.paper_trade_account_balance = {
+    "BTC": 2.0,
+    "USDT": 200000,
+    "ETH": 40,
+}
+
+# Save config
+save_to_yml(CLIENT_CONFIG_PATH, client_config)
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Paper trade exchange not available">
+    Ensure the exchange is listed in `paper_trade_exchanges` in `conf/conf_client.yml`
+  </Accordion>
+  
+  <Accordion title="Orders not filling">
+    Check that:
+    - Market data is being received (check logs)
+    - Your order prices are within the market spread
+    - Sufficient time has passed for price movement
+  </Accordion>
+  
+  <Accordion title="Balance not updating">
+    Verify:
+    - Orders are actually filling (check `history`)
+    - No configuration errors in `conf_client.yml`
+    - Restart Hummingbot to reload config
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Global Settings" href="/configuration/global-settings" icon="globe">
+    Configure paper trading in global settings
+  </Card>
+  <Card title="Config Files" href="/configuration/config-files" icon="file">
+    Understanding configuration file structure
+  </Card>
+  <Card title="Strategies" href="/strategies" icon="chess">
+    Explore strategies to test in paper trading
+  </Card>
+  <Card title="Getting Started" href="/getting-started" icon="rocket">
+    Complete beginner's guide
+  </Card>
+</CardGroup>

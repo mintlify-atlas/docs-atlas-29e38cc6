@@ -1,0 +1,191 @@
+---
+title: Exchange Connectors Overview
+description: Understand Hummingbot's exchange connector architecture and how to use different connector types
+keywords: ['connectors', 'exchange', 'CEX', 'DEX', 'CLOB', 'AMM', 'trading']
+---
+
+Hummingbot connectors standardize REST and WebSocket API interfaces to different types of exchanges, enabling you to build sophisticated trading strategies that can be deployed across many exchanges with minimal changes.
+
+Over the past year, Hummingbot users have generated over $34 billion in trading volume across 140+ unique trading venues using these connectors.
+
+## Connector Types
+
+We classify exchange connectors into three main categories based on their architecture and custody model:
+
+<CardGroup cols={3}>
+  <Card title="CLOB CEX" icon="building-columns" href="/connectors/clob-cex-spot">
+    Centralized exchanges with central limit order books. Custodial, connect via API keys.
+  </Card>
+  <Card title="CLOB DEX" icon="cube" href="/connectors/clob-dex-spot">
+    Decentralized exchanges with on-chain order books. Non-custodial, connect via wallet keys.
+  </Card>
+  <Card title="AMM DEX" icon="network-wired" href="/connectors/amm-dex">
+    Automated market maker protocols. Non-custodial, connect via Gateway middleware.
+  </Card>
+</CardGroup>
+
+### CLOB CEX: Centralized Limit Order Book Exchanges
+
+Centralized exchanges take custody of your funds and maintain off-chain order books. They offer:
+
+- High liquidity and fast execution
+- Advanced order types and trading features
+- API key-based authentication
+- Support for both spot and perpetual futures markets
+
+**Sub-types:**
+- **Spot**: Trading spot markets for immediate settlement
+- **Perpetual**: Trading perpetual futures contracts with leverage
+
+### CLOB DEX: Decentralized Limit Order Book Exchanges
+
+Decentralized exchanges with on-chain central limit order books. They provide:
+
+- Non-custodial trading (you control your keys)
+- On-chain settlement and transparency
+- Wallet key-based authentication
+- Lower counterparty risk
+
+**Sub-types:**
+- **Spot**: Trading spot markets on-chain
+- **Perpetual**: Trading perpetual futures on-chain
+
+### AMM DEX: Automated Market Maker Exchanges
+
+Decentralized exchanges using Automated Market Maker protocols. They feature:
+
+- Non-custodial liquidity pools
+- Gateway middleware integration
+- Permissionless market making
+- Composable DeFi protocols
+
+**Sub-types:**
+- **Router**: DEX aggregators that find optimal swap routes across multiple pools
+- **AMM**: Traditional constant product (x*y=k) liquidity pools
+- **CLMM**: Concentrated Liquidity Market Maker pools with customizable price ranges
+
+## How to Use Connectors
+
+### Connecting to Exchanges
+
+<Steps>
+  <Step title="Choose your exchange type">
+    Select an exchange connector based on your trading needs:
+    - CLOB CEX for high liquidity and advanced features
+    - CLOB DEX for on-chain transparency and non-custodial trading
+    - AMM DEX for liquidity provision and DEX aggregation
+  </Step>
+  
+  <Step title="Set up credentials">
+    Configure your authentication method:
+    - **CLOB CEX**: Generate API keys from the exchange dashboard
+    - **CLOB DEX**: Connect your wallet private keys
+    - **AMM DEX**: Install Gateway middleware and configure wallet
+  </Step>
+  
+  <Step title="Configure in Hummingbot">
+    Use the `connect` command in Hummingbot to add the exchange:
+    ```bash
+    connect [exchange_name]
+    ```
+    Follow the prompts to enter your credentials securely.
+  </Step>
+  
+  <Step title="Verify connection">
+    Test your connection to ensure proper configuration:
+    ```bash
+    balance
+    ```
+    This displays your balances across all connected exchanges.
+  </Step>
+</Steps>
+
+<Note>
+API keys and private keys are stored locally and encrypted. Hummingbot never sends your credentials to external servers.
+</Note>
+
+### Connector Configuration
+
+Each connector type has specific configuration requirements:
+
+<Tabs>
+  <Tab title="CLOB CEX">
+    Configure API keys with appropriate permissions:
+    - **Spot**: Read balance, place orders, cancel orders
+    - **Perpetual**: Additional permissions for futures trading and leverage
+    
+    <Warning>
+    Never enable withdrawal permissions on API keys used for trading bots.
+    </Warning>
+  </Tab>
+  
+  <Tab title="CLOB DEX">
+    Configure wallet credentials:
+    - Private key for signing transactions
+    - RPC endpoint for blockchain connectivity
+    - Gas settings for transaction fees
+    
+    <Warning>
+    Always use a dedicated trading wallet. Never use your primary wallet with significant holdings.
+    </Warning>
+  </Tab>
+  
+  <Tab title="AMM DEX">
+    Install and configure Gateway:
+    ```bash
+    # During setup, answer 'y' when prompted
+    Include Gateway? [y/N]
+    ```
+    
+    Gateway provides standardized connectors for AMM protocols across different blockchain networks.
+  </Tab>
+</Tabs>
+
+## Supported Features by Type
+
+Different connector types support different trading features:
+
+| Feature | CLOB CEX | CLOB DEX | AMM DEX |
+|---------|----------|----------|---------|
+| Limit orders | Yes | Yes | No |
+| Market orders | Yes | Yes | Yes (swaps) |
+| Stop-loss orders | Yes | Some | No |
+| Leverage trading | Perpetual only | Perpetual only | Some protocols |
+| Liquidity provision | No | Some | Yes |
+| Cross-chain trading | No | Limited | Yes |
+
+## Exchange Sponsors
+
+The following exchanges actively support Hummingbot development through broker partnerships and sponsorships:
+
+- **Binance** - CLOB CEX (Spot, Perpetual) - 10% fee discount
+- **Gate.io** - CLOB CEX (Spot, Perpetual) - 20% fee discount
+- **KuCoin** - CLOB CEX (Spot, Perpetual) - 20% fee discount
+- **OKX** - CLOB CEX (Spot, Perpetual) - 20% fee discount
+- **Hyperliquid** - CLOB DEX (Spot, Perpetual)
+- **dYdX** - CLOB DEX (Perpetual)
+
+Visit the individual exchange pages for referral links and discount details.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CLOB CEX Spot" icon="coins" href="/connectors/clob-cex-spot">
+    Explore centralized spot trading connectors
+  </Card>
+  <Card title="CLOB CEX Perpetual" icon="chart-line" href="/connectors/clob-cex-perpetual">
+    Explore centralized perpetual futures connectors
+  </Card>
+  <Card title="CLOB DEX Spot" icon="cube" href="/connectors/clob-dex-spot">
+    Explore decentralized spot trading connectors
+  </Card>
+  <Card title="CLOB DEX Perpetual" icon="chart-candlestick" href="/connectors/clob-dex-perpetual">
+    Explore decentralized perpetual connectors
+  </Card>
+  <Card title="AMM DEX" icon="network-wired" href="/connectors/amm-dex">
+    Explore automated market maker connectors
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Install Hummingbot to start trading
+  </Card>
+</CardGroup>

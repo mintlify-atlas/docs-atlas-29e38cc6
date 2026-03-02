@@ -1,0 +1,481 @@
+---
+title: Executors
+description: Executor base classes and executor types in the V2 framework
+---
+
+## Overview
+
+Executors are responsible for executing trading orders and managing positions. The V2 framework provides a base `ExecutorBase` class and several specialized executor types:
+
+- **PositionExecutor** - Manages single positions with triple barrier risk management
+- **DCAExecutor** - Dollar-cost averaging with multiple entry levels
+- **OrderExecutor** - Simple order execution with various strategies
+- **GridExecutor** - Grid trading executor
+- **TWAPExecutor** - Time-weighted average price execution
+- **ArbitrageExecutor** - Cross-exchange arbitrage
+- **XEMMExecutor** - Cross-exchange market making
+- **LPExecutor** - Liquidity pool executor for AMMs
+
+---
+
+## ExecutorBase
+
+Base class for all executors in the V2 framework.
+
+### Class Definition
+
+```python
+class ExecutorBase(RunnableBase):
+    def __init__(
+        self,
+        strategy: StrategyV2Base,
+        connectors: List[str],
+        config: ExecutorConfigBase,
+        update_interval: float = 0.5
+    )
+```
+
+**Location:** `hummingbot/strategy_v2/executors/executor_base.py:29`
+
+### Parameters
+
+<ParamField path="strategy" type="StrategyV2Base" required>
+  The strategy instance that owns this executor
+</ParamField>
+
+<ParamField path="connectors" type="List[str]" required>
+  List of connector names to be used by the executor
+</ParamField>
+
+<ParamField path="config" type="ExecutorConfigBase" required>
+  Configuration object for the executor
+</ParamField>
+
+<ParamField path="update_interval" type="float" default="0.5">
+  Update interval for the executor in seconds
+</ParamField>
+
+### Properties
+
+<ResponseField name="status" type="RunnableStatus">
+  Current status of the executor (NOT_STARTED, RUNNING, TERMINATED)
+</ResponseField>
+
+<ResponseField name="is_active" type="bool">
+  Returns True if executor is open or trading
+</ResponseField>
+
+<ResponseField name="is_trading" type="bool">
+  Returns True if executor is active and has non-zero PnL
+</ResponseField>
+
+<ResponseField name="is_closed" type="bool">
+  Returns True if executor status is TERMINATED
+</ResponseField>
+
+<ResponseField name="net_pnl_quote" type="Decimal">
+  Net profit or loss in quote currency
+</ResponseField>
+
+<ResponseField name="net_pnl_pct" type="Decimal">
+  Net profit or loss as percentage
+</ResponseField>
+
+<ResponseField name="cum_fees_quote" type="Decimal">
+  Cumulative fees paid in quote currency
+</ResponseField>
+
+<ResponseField name="filled_amount_quote" type="Decimal">
+  Filled amount in quote currency
+</ResponseField>
+
+<ResponseField name="executor_info" type="ExecutorInfo">
+  Complete information object about the executor
+</ResponseField>
+
+### Core Methods
+
+#### place_order()
+
+```python
+def place_order(
+    self,
+    connector_name: str,
+    trading_pair: str,
+    order_type: OrderType,
+    side: TradeType,
+    amount: Decimal,
+    position_action: PositionAction = PositionAction.NIL,
+    price: Decimal = Decimal("NaN")
+)
+```
+
+Places an order with the specified parameters.
+
+**Location:** `executor_base.py:268`
+
+---
+
+#### get_price()
+
+```python
+def get_price(
+    self,
+    connector_name: str,
+    trading_pair: str,
+    price_type: PriceType = PriceType.MidPrice
+) -> Decimal
+```
+
+Retrieves the price for the specified trading pair.
+
+**Location:** `executor_base.py:294`
+
+---
+
+#### get_balance()
+
+```python
+def get_balance(self, connector_name: str, asset: str) -> Decimal
+```
+
+Retrieves the balance of the specified asset.
+
+**Location:** `executor_base.py:325`
+
+---
+
+#### early_stop()
+
+```python
+def early_stop(self, keep_position: bool = False)
+```
+
+Allows the strategy to stop the executor early. Must be implemented by subclasses.
+
+**Location:** `executor_base.py:185`
+
+---
+
+### Event Handlers
+
+Executors automatically listen to order events and process them:
+
+```python
+def process_order_created_event(self, event_tag: int, market: ConnectorBase, event)
+def process_order_filled_event(self, event_tag: int, market: ConnectorBase, event)
+def process_order_completed_event(self, event_tag: int, market: ConnectorBase, event)
+def process_order_canceled_event(self, event_tag: int, market: ConnectorBase, event)
+def process_order_failed_event(self, event_tag: int, market: ConnectorBase, event)
+```
+
+---
+
+## PositionExecutor
+
+Manages single positions with triple barrier risk management (stop loss, take profit, time limit).
+
+### Class Definition
+
+```python
+class PositionExecutor(ExecutorBase):
+    def __init__(
+        self,
+        strategy: StrategyV2Base,
+        config: PositionExecutorConfig,
+        update_interval: float = 1.0,
+        max_retries: int = 10
+    )
+```
+
+**Location:** `hummingbot/strategy_v2/executors/position_executor/position_executor.py:26`
+
+### Configuration
+
+<ParamField path="connector_name" type="str" required>
+  Exchange connector name
+</ParamField>
+
+<ParamField path="trading_pair" type="str" required>
+  Trading pair to execute on
+</ParamField>
+
+<ParamField path="side" type="TradeType" required>
+  BUY or SELL side
+</ParamField>
+
+<ParamField path="amount" type="Decimal" required>
+  Amount to trade in base asset
+</ParamField>
+
+<ParamField path="entry_price" type="Decimal" optional>
+  Entry price for the position (calculated if not provided)
+</ParamField>
+
+<ParamField path="triple_barrier_config" type="TripleBarrierConfig" required>
+  Configuration for stop loss, take profit, and time limit
+</ParamField>
+
+<ParamField path="leverage" type="int" default="1">
+  Leverage for perpetual trading
+</ParamField>
+
+### Triple Barrier Config
+
+```python
+class TripleBarrierConfig:
+    stop_loss: Optional[Decimal]  # Stop loss as percentage (e.g., 0.03 = 3%)
+    take_profit: Optional[Decimal]  # Take profit as percentage
+    time_limit: Optional[int]  # Time limit in seconds
+    trailing_stop: Optional[TrailingStop]  # Trailing stop config
+    open_order_type: OrderType  # Order type for opening
+    take_profit_order_type: OrderType  # Order type for take profit
+    stop_loss_order_type: OrderType  # Order type for stop loss
+    time_limit_order_type: OrderType  # Order type for time limit
+```
+
+### Key Properties
+
+<ResponseField name="is_perpetual" type="bool">
+  True if using a perpetual exchange connector
+</ResponseField>
+
+<ResponseField name="open_filled_amount" type="Decimal">
+  Filled amount of the open order
+</ResponseField>
+
+<ResponseField name="close_filled_amount" type="Decimal">
+  Filled amount of the close order
+</ResponseField>
+
+<ResponseField name="entry_price" type="Decimal">
+  Average executed entry price
+</ResponseField>
+
+<ResponseField name="close_price" type="Decimal">
+  Average executed close price or current market price
+</ResponseField>
+
+<ResponseField name="is_expired" type="bool">
+  True if position has exceeded time limit
+</ResponseField>
+
+---
+
+## DCAExecutor
+
+Dollar-cost averaging executor that places multiple orders at different price levels.
+
+### Class Definition
+
+```python
+class DCAExecutor(ExecutorBase):
+    def __init__(
+        self,
+        strategy: StrategyV2Base,
+        config: DCAExecutorConfig,
+        update_interval: float = 1.0,
+        max_retries: int = 15
+    )
+```
+
+**Location:** `hummingbot/strategy_v2/executors/dca_executor/dca_executor.py:24`
+
+### Configuration
+
+<ParamField path="connector_name" type="str" required>
+  Exchange connector name
+</ParamField>
+
+<ParamField path="trading_pair" type="str" required>
+  Trading pair to execute on
+</ParamField>
+
+<ParamField path="side" type="TradeType" required>
+  BUY or SELL side
+</ParamField>
+
+<ParamField path="amounts_quote" type="List[Decimal]" required>
+  List of amounts in quote currency for each level
+</ParamField>
+
+<ParamField path="prices" type="List[Decimal]" required>
+  List of prices for each DCA level
+</ParamField>
+
+<ParamField path="mode" type="DCAMode" default="DCAMode.MAKER">
+  MAKER (limit orders) or TAKER (market orders)
+</ParamField>
+
+<ParamField path="stop_loss" type="Optional[Decimal]" optional>
+  Stop loss as percentage
+</ParamField>
+
+<ParamField path="take_profit" type="Optional[Decimal]" optional>
+  Take profit as percentage
+</ParamField>
+
+<ParamField path="time_limit" type="Optional[int]" optional>
+  Time limit in seconds
+</ParamField>
+
+<ParamField path="activation_bounds" type="Optional[List[Decimal]]" optional>
+  Activation bounds for TAKER mode [min, max]
+</ParamField>
+
+### Key Properties
+
+<ResponseField name="n_levels" type="int">
+  Number of DCA levels
+</ResponseField>
+
+<ResponseField name="open_filled_amount" type="Decimal">
+  Total filled amount across all open orders
+</ResponseField>
+
+<ResponseField name="current_position_average_price" type="Decimal">
+  Weighted average price of filled orders
+</ResponseField>
+
+<ResponseField name="target_position_average_price" type="Decimal">
+  Target average price if all levels are filled
+</ResponseField>
+
+<ResponseField name="max_amount_quote" type="Decimal">
+  Total amount in quote currency across all levels
+</ResponseField>
+
+<ResponseField name="is_expired" type="bool">
+  True if executor has exceeded time limit
+</ResponseField>
+
+---
+
+## CloseType Enum
+
+Defines how an executor was closed:
+
+<ResponseField name="TIME_LIMIT" type="int" value="1">
+  Closed due to time limit being reached
+</ResponseField>
+
+<ResponseField name="STOP_LOSS" type="int" value="2">
+  Closed due to stop loss being triggered
+</ResponseField>
+
+<ResponseField name="TAKE_PROFIT" type="int" value="3">
+  Closed due to take profit being reached
+</ResponseField>
+
+<ResponseField name="EXPIRED" type="int" value="4">
+  Executor expired
+</ResponseField>
+
+<ResponseField name="EARLY_STOP" type="int" value="5">
+  Manually stopped early by controller
+</ResponseField>
+
+<ResponseField name="TRAILING_STOP" type="int" value="6">
+  Closed due to trailing stop
+</ResponseField>
+
+<ResponseField name="INSUFFICIENT_BALANCE" type="int" value="7">
+  Closed due to insufficient balance
+</ResponseField>
+
+<ResponseField name="FAILED" type="int" value="8">
+  Executor failed
+</ResponseField>
+
+<ResponseField name="COMPLETED" type="int" value="9">
+  Executor completed successfully
+</ResponseField>
+
+<ResponseField name="POSITION_HOLD" type="int" value="10">
+  Position is being held (not closed)
+</ResponseField>
+
+## Usage Examples
+
+### PositionExecutor with Triple Barrier
+
+```python
+from hummingbot.strategy_v2.executors.position_executor.data_types import (
+    PositionExecutorConfig,
+    TripleBarrierConfig
+)
+from decimal import Decimal
+
+# Configure triple barrier
+triple_barrier = TripleBarrierConfig(
+    stop_loss=Decimal("0.02"),  # 2% stop loss
+    take_profit=Decimal("0.03"),  # 3% take profit
+    time_limit=60 * 30,  # 30 minutes
+    open_order_type=OrderType.MARKET,
+    take_profit_order_type=OrderType.LIMIT,
+    stop_loss_order_type=OrderType.MARKET,
+    time_limit_order_type=OrderType.MARKET
+)
+
+# Create position config
+config = PositionExecutorConfig(
+    timestamp=time.time(),
+    connector_name="binance_perpetual",
+    trading_pair="BTC-USDT",
+    side=TradeType.BUY,
+    amount=Decimal("0.01"),
+    entry_price=Decimal("50000"),
+    triple_barrier_config=triple_barrier,
+    leverage=10
+)
+
+# Create and start executor
+executor = PositionExecutor(strategy, config)
+executor.start()
+```
+
+### DCAExecutor Example
+
+```python
+from hummingbot.strategy_v2.executors.dca_executor.data_types import (
+    DCAExecutorConfig,
+    DCAMode
+)
+
+# Configure DCA with 3 levels
+config = DCAExecutorConfig(
+    timestamp=time.time(),
+    connector_name="binance",
+    trading_pair="ETH-USDT",
+    side=TradeType.BUY,
+    amounts_quote=[Decimal("100"), Decimal("150"), Decimal("200")],
+    prices=[Decimal("3000"), Decimal("2950"), Decimal("2900")],
+    mode=DCAMode.MAKER,
+    take_profit=Decimal("0.05"),  # 5% take profit
+    stop_loss=Decimal("0.03"),  # 3% stop loss
+    time_limit=60 * 60 * 24  # 24 hours
+)
+
+executor = DCAExecutor(strategy, config)
+executor.start()
+
+# Check position average
+print(f"Current avg price: {executor.current_position_average_price}")
+print(f"Target avg price: {executor.target_position_average_price}")
+```
+
+### Checking Executor Status
+
+```python
+# Get executor info
+info = executor.executor_info
+
+print(f"Status: {info.status}")
+print(f"PnL %: {info.net_pnl_pct}")
+print(f"PnL Quote: {info.net_pnl_quote}")
+print(f"Is Active: {info.is_active}")
+print(f"Is Trading: {info.is_trading}")
+
+if info.close_type:
+    print(f"Close Type: {info.close_type}")
+```

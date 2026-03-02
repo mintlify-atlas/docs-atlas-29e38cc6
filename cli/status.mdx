@@ -1,0 +1,394 @@
+---
+title: status
+description: Monitor bot status, validate configuration, and view real-time strategy performance
+---
+
+## Overview
+
+The `status` command provides comprehensive information about your bot's operational state. It performs validation checks, displays strategy status, and monitors active trading positions.
+
+## Basic Usage
+
+### View Current Status
+
+```bash
+status
+```
+
+The output depends on whether a strategy is running:
+
+**When bot is running:**
+```
+Paper Trading Active: All orders are simulated, and no real orders are placed.
+
+Strategy: pure_market_making
+Market: binance - BTC-USDT
+
+Active Orders:
+  Level  Type  Price      Amount    Age
+  1      bid   51000.00   0.005     00:02:15
+  1      ask   52000.00   0.005     00:02:15
+  2      bid   50500.00   0.005     00:02:15  
+  2      ask   52500.00   0.005     00:02:15
+
+Assets:
+  BTC:  1.0100 (start: 1.0000)
+  USDT: 49800 (start: 50000)
+
+Performance:
+  Trades: 12 buys, 11 sells
+  Total P&L: +250 USDT
+  Return: +0.50%
+```
+
+**When bot is not running:**
+```
+Preliminary checks:
+  - Strategy check: All required parameters confirmed.
+  - Exchange check: All connections confirmed.
+  - All checks: Confirmed.
+```
+
+### Live Status Updates
+
+```bash
+status --live
+```
+
+Displays continuously updating status (refreshes every second).
+
+**Example:**
+```
+Strategy: pure_market_making
+Market: binance - BTC-USDT
+
+Active Orders:
+  Level  Type  Price      Amount    Age
+  1      bid   51000.00   0.005     00:00:03
+  1      ask   52000.00   0.005     00:00:03
+
+Press escape key to stop update.
+```
+
+<Info>
+Press the ESC key to exit live status mode and return to the command prompt.
+</Info>
+
+## Status Checks (Pre-Start Validation)
+
+When no strategy is running, `status` performs these validation checks:
+
+<Steps>
+  <Step title="Strategy Check">
+    Verifies:
+    - Strategy file is loaded
+    - All required parameters are configured
+    - Configuration is valid
+    
+    **Success:**
+    ```
+    - Strategy check: All required parameters confirmed.
+    ```
+    
+    **Failure:**
+    ```
+    - Strategy check: Incomplete strategy configuration. 
+      The following values are missing:
+        order_amount
+        bid_spread
+        ask_spread
+    ```
+  </Step>
+  
+  <Step title="Exchange Check">
+    Validates all required exchange connections:
+    
+    **Success:**
+    ```
+    - Exchange check: All connections confirmed.
+    ```
+    
+    **Failure:**
+    ```
+    - Exchange check: Invalid connections:
+        binance: Invalid API key or secret
+        kucoin: Connection timeout
+    ```
+  </Step>
+  
+  <Step title="Connector Check">
+    Ensures connectors are ready:
+    
+    **Not Ready:**
+    ```
+    - Connectors check: Waiting for connectors Binance to get ready for trading.
+      Please keep the bot running and try to start again in a few minutes.
+      
+    - Binance connector status:
+        description                    status
+        Connector initialized         True
+        Trading pairs loaded           False
+        Account data loaded            False
+    ```
+  </Step>
+  
+  <Step title="Network Status">
+    Confirms exchanges are online:
+    
+    **Offline:**
+    ```
+    - Connector check: binance is currently offline.
+    ```
+  </Step>
+</Steps>
+
+## Running Strategy Status
+
+When a strategy is active, status shows:
+
+### Active Orders
+
+Details of all open orders:
+- Level (for multi-level strategies)
+- Order type (bid/ask or buy/sell)
+- Price
+- Amount
+- Age (how long the order has been open)
+
+### Current Positions
+
+For perpetual/futures strategies:
+- Side (long/short)
+- Size
+- Entry price
+- Current price
+- Unrealized P&L
+- Leverage
+
+### Asset Balances
+
+Current vs starting balances:
+```
+Assets:
+  BTC:  1.0100 (start: 1.0000) [+1.00%]
+  USDT: 49800 (start: 50000) [-0.40%]
+```
+
+### Performance Metrics
+
+- Number of trades (buys/sells)
+- Total trading volume
+- Profit & Loss
+- Return percentage
+- Fees paid
+
+### Warnings
+
+Recent application warnings and errors:
+```
+Warnings:
+  * 2024-03-02 14:25:00 - (OrderTracker) - Order fill delayed by 5 seconds
+  * 2024-03-02 14:20:00 - (BalanceTracker) - Balance update timeout
+```
+
+<Info>
+Warnings are shown in development mode. The most recent warnings are displayed, limited to prevent clutter.
+</Info>
+
+## Strategy-Specific Status
+
+Different strategies show customized status information:
+
+### Pure Market Making
+
+- Spread percentages
+- Inventory skew settings
+- Order refresh time
+- Price ceiling/floor (if configured)
+
+### Cross-Exchange Market Making
+
+- Maker vs taker market status
+- Profitability of current opportunities
+- Hedge ratio
+
+### AMM Arbitrage
+
+- Price difference between markets
+- Current profitability
+- Gas costs (for DEX)
+
+### Avellaneda Market Making
+
+- Calculated optimal spreads
+- Risk parameter (gamma)
+- Reservation price
+
+## Implementation Details
+
+The status command is implemented in `/hummingbot/client/command/status_command.py:114` and provides:
+
+- **Dual mode operation**: Validation checks or running status
+- **Live update mode**: Continuous status refresh
+- **Strategy-specific formatting**: Each strategy customizes output
+- **Warning expiration**: Old warnings automatically removed
+- **Async validation**: Network checks with timeout protection
+
+## Paper Trading Indicator
+
+If any exchange is in paper trading mode:
+
+```
+Paper Trading Active: All orders are simulated, and no real orders are placed.
+```
+
+This notice appears at the top of the status output as a reminder.
+
+## Use Cases
+
+### Pre-Flight Check
+
+Before starting, verify everything is ready:
+
+```bash
+import my_strategy.yml
+status
+# Ensure all checks pass
+start
+```
+
+### Monitor Active Strategy
+
+Check on running bot:
+
+```bash
+status
+# Quick snapshot of current state
+```
+
+### Live Monitoring
+
+Continuously watch bot activity:
+
+```bash
+status --live
+# Watch orders and performance update in real-time
+```
+
+### Troubleshoot Issues
+
+Diagnose problems:
+
+```bash
+status
+# Check warnings section for errors
+# Verify connections are valid
+```
+
+## Troubleshooting
+
+### "Please import or create a strategy"
+
+No strategy is loaded.
+
+**Solution:**
+```bash
+create
+# or
+import my_strategy.yml
+```
+
+### "Invalid connections"
+
+Exchange API credentials are wrong or expired.
+
+**Solution:**
+```bash
+connect binance
+# Re-enter credentials
+```
+
+### "Incomplete strategy configuration"
+
+Required parameters are missing.
+
+**Solution:**
+```bash
+config order_amount 0.01
+config bid_spread 0.5
+# Set each missing parameter
+```
+
+### Network Timeout
+
+```
+A network error prevented the connection check to complete.
+```
+
+**Solutions:**
+1. Check internet connection
+2. Verify exchange is online
+3. Increase timeout:
+   ```bash
+   config other_commands_timeout 60
+   ```
+
+### Connectors Not Ready
+
+```
+Waiting for connectors Binance to get ready for trading.
+```
+
+**This is normal during:**
+- Initial connection
+- First time connecting to an exchange
+- After network interruptions
+
+**Solution:** Wait 1-2 minutes for connectors to initialize, then try again:
+```bash
+status
+```
+
+If it persists:
+1. Check exchange API status page
+2. Verify API permissions include trading and reading
+3. Restart the bot
+
+### Exchange Offline
+
+```
+binance is currently offline.
+```
+
+**Solutions:**
+1. Check if exchange is down (status page)
+2. Verify internet connection
+3. Check firewall/VPN isn't blocking connection
+4. Wait and retry
+
+## Status in Scripts
+
+You can check status programmatically from external scripts using MQTT or the HTTP API (if enabled).
+
+## Status vs History
+
+**status**:
+- Real-time current state
+- Active orders and positions  
+- Live performance metrics
+- Connection validation
+
+**history**:
+- Past trades and performance
+- Completed transactions only
+- Historical P&L calculations
+- Time-period filtering
+
+Use `status` for "what's happening now" and `history` for "what happened before."
+
+## Related Commands
+
+- [start](/cli/start-stop) - Start the strategy after status checks pass
+- [stop](/cli/start-stop) - Stop the running strategy
+- [history](/cli/history) - View past performance
+- [balance](/cli/balance) - Check detailed balances

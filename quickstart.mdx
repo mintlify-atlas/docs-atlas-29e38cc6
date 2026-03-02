@@ -1,80 +1,387 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart Guide
+description: Deploy your first trading bot in minutes with a simple market-making strategy
 ---
 
-## Get started in three steps
-
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide walks you through running your first Hummingbot trading bot using the Simple PMM (Pure Market Making) strategy on a paper trading exchange.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+This quickstart uses **paper trading** (simulated trading) so you can learn without risking real funds. You'll create a bot that places buy and sell orders around the mid-price of a trading pair.
 </Note>
+
+## Prerequisites
+
+- Hummingbot installed via [Docker](/installation#docker-installation-recommended) or [source](/installation#source-installation)
+- Hummingbot CLI running
+
+## Step 1: Start Hummingbot
+
+If Hummingbot isn't already running:
+
+<CodeGroup>
+```bash Docker
+docker attach hummingbot
+```
+
+```bash Source
+cd hummingbot
+conda activate hummingbot
+./start
+```
+</CodeGroup>
+
+You should see the Hummingbot CLI prompt:
+
+```
+>>> 
+```
+
+## Step 2: Create a Script Strategy
+
+We'll use the Simple PMM script strategy, which places symmetric buy and sell orders around the mid-price.
+
+<Steps>
+  <Step title="Navigate to Scripts">
+    In the Hummingbot CLI:
+    
+    ```
+    >>> create --script-config
+    ```
+    
+    This opens the script configuration wizard.
+  </Step>
+  
+  <Step title="Select Simple PMM">
+    When prompted for a script file, enter:
+    
+    ```
+    simple_pmm.py
+    ```
+    
+    <Info>The `simple_pmm.py` script is included with Hummingbot in the `scripts/` directory. You can view all available scripts with the `ls scripts/` command from your shell.</Info>
+  </Step>
+  
+  <Step title="Configure Parameters">
+    The wizard will ask for configuration parameters. Use these recommended values for paper trading:
+    
+    | Parameter | Value | Description |
+    |-----------|-------|-------------|
+    | **exchange** | `binance_paper_trade` | Paper trading exchange (no real funds) |
+    | **trading_pair** | `ETH-USDT` | Trading pair to use |
+    | **order_amount** | `0.01` | Amount of ETH per order |
+    | **bid_spread** | `0.001` | 0.1% below mid-price for buy orders |
+    | **ask_spread** | `0.001` | 0.1% above mid-price for sell orders |
+    | **order_refresh_time** | `15` | Refresh orders every 15 seconds |
+    | **price_type** | `mid` | Use mid-price as reference |
+    
+    Example configuration session:
+    
+    ```
+    Enter exchange (default: binance_paper_trade): binance_paper_trade
+    Enter trading_pair (default: ETH-USDT): ETH-USDT
+    Enter order_amount (default: 0.01): 0.01
+    Enter bid_spread (default: 0.001): 0.001
+    Enter ask_spread (default: 0.001): 0.001
+    Enter order_refresh_time (default: 15): 15
+    Enter price_type (default: mid): mid
+    ```
+  </Step>
+  
+  <Step title="Save Configuration">
+    When prompted for a configuration name:
+    
+    ```
+    Enter a name for your configuration: my_first_bot
+    ```
+    
+    The configuration will be saved to `conf/scripts/my_first_bot.yml`.
+  </Step>
+</Steps>
+
+## Step 3: Start the Strategy
+
+Now launch your bot:
+
+```
+>>> start --script my_first_bot
+```
+
+You should see output like:
+
+```
+Starting strategy...
+Strategy: simple_pmm
+Exchange: binance_paper_trade
+Trading pair: ETH-USDT
+
+Creating orders...
+BUY 0.01 ETH-USDT binance_paper_trade at 2450.55
+SELL 0.01 ETH-USDT binance_paper_trade at 2455.50
+```
+
+<Tip>
+The bot will continuously:
+1. Cancel existing orders
+2. Calculate new bid/ask prices based on current mid-price
+3. Place new orders
+4. Wait for `order_refresh_time` seconds
+5. Repeat
+</Tip>
+
+## Step 4: Monitor Your Bot
+
+While the strategy is running, you can use these commands to monitor performance:
+
+<AccordionGroup>
+  <Accordion title="status - View current orders and balances">
+    ```
+    >>> status
+    ```
+    
+    Shows:
+    - Active buy/sell orders
+    - Current balances
+    - Market prices
+    - Spread information
+  </Accordion>
+  
+  <Accordion title="history - View completed trades">
+    ```
+    >>> history
+    ```
+    
+    Lists all filled orders with:
+    - Trade side (buy/sell)
+    - Amount
+    - Price
+    - Timestamp
+  </Accordion>
+  
+  <Accordion title="pnl - Check profit and loss">
+    ```
+    >>> pnl
+    ```
+    
+    Shows:
+    - Realized PnL from closed trades
+    - Unrealized PnL from open positions
+    - Total PnL
+  </Accordion>
+  
+  <Accordion title="config - View current configuration">
+    ```
+    >>> config
+    ```
+    
+    Displays all strategy parameters
+  </Accordion>
+</AccordionGroup>
+
+## Step 5: Modify and Restart
+
+To adjust your strategy parameters:
+
+<Steps>
+  <Step title="Stop the Strategy">
+    ```
+    >>> stop
+    ```
+    
+    This will cancel all open orders and stop the bot.
+  </Step>
+  
+  <Step title="Edit Configuration">
+    ```
+    >>> config
+    ```
+    
+    Then modify any parameter, for example:
+    
+    ```
+    >>> config bid_spread
+    Enter bid_spread (current: 0.001): 0.002
+    ```
+  </Step>
+  
+  <Step title="Restart">
+    ```
+    >>> start
+    ```
+    
+    The bot will use the new configuration.
+  </Step>
+</Steps>
+
+## Understanding the Simple PMM Code
+
+The Simple PMM strategy demonstrates core Hummingbot concepts. Here's the key logic from `scripts/simple_pmm.py`:
+
+<CodeGroup>
+```python Creating Orders
+def create_proposal(self) -> List[OrderCandidate]:
+    # Get reference price (mid-price or last trade)
+    ref_price = self.connectors[self.config.exchange].get_price_by_type(
+        self.config.trading_pair, self.price_source
+    )
+    
+    # Calculate bid and ask prices
+    buy_price = ref_price * Decimal(1 - self.config.bid_spread)
+    sell_price = ref_price * Decimal(1 + self.config.ask_spread)
+    
+    # Create order candidates
+    buy_order = OrderCandidate(
+        trading_pair=self.config.trading_pair,
+        is_maker=True,
+        order_type=OrderType.LIMIT,
+        order_side=TradeType.BUY,
+        amount=Decimal(self.config.order_amount),
+        price=buy_price
+    )
+    
+    sell_order = OrderCandidate(
+        trading_pair=self.config.trading_pair,
+        is_maker=True,
+        order_type=OrderType.LIMIT,
+        order_side=TradeType.SELL,
+        amount=Decimal(self.config.order_amount),
+        price=sell_price
+    )
+    
+    return [buy_order, sell_order]
+```
+
+```python Main Loop
+def on_tick(self):
+    # Check if it's time to refresh orders
+    if self.create_timestamp <= self.current_timestamp:
+        # Cancel all existing orders
+        self.cancel_all_orders()
+        
+        # Create new order proposal
+        proposal = self.create_proposal()
+        
+        # Adjust to available budget
+        proposal_adjusted = self.adjust_proposal_to_budget(proposal)
+        
+        # Place the orders
+        self.place_orders(proposal_adjusted)
+        
+        # Set next refresh time
+        self.create_timestamp = self.config.order_refresh_time + self.current_timestamp
+```
+
+```python Event Handling
+def did_fill_order(self, event: OrderFilledEvent):
+    # Log when an order is filled
+    msg = (
+        f"{event.trade_type.name} {round(event.amount, 2)} "
+        f"{event.trading_pair} {self.config.exchange} at {round(event.price, 2)}"
+    )
+    self.log_with_clock(logging.INFO, msg)
+    self.notify_hb_app_with_timestamp(msg)
+```
+</CodeGroup>
+
+<Info>
+The Simple PMM strategy is defined in `hummingbot/scripts/simple_pmm.py:31-95`. It extends `StrategyV2Base` and implements the core methods: `on_tick()`, `create_proposal()`, and `did_fill_order()`.
+</Info>
+
+## Moving to Real Trading
+
+Once you're comfortable with paper trading, you can move to real exchanges:
+
+<Warning>
+**Before trading with real funds:**
+- Thoroughly test your strategy in paper trading
+- Start with small amounts
+- Understand the risks of automated trading
+- Never invest more than you can afford to lose
+</Warning>
+
+<Steps>
+  <Step title="Connect to Real Exchange">
+    Add API keys for a real exchange:
+    
+    ```
+    >>> connect binance
+    ```
+    
+    Follow the prompts to enter your API key and secret. See [Exchange Setup](/connectors/overview) for details.
+  </Step>
+  
+  <Step title="Create New Configuration">
+    ```
+    >>> create --script-config
+    ```
+    
+    Use the same `simple_pmm.py` script but configure:
+    - Real exchange (e.g., `binance`)
+    - Appropriate order amounts for your balance
+    - Suitable spreads for the market
+  </Step>
+  
+  <Step title="Start with Caution">
+    ```
+    >>> start --script my_real_bot
+    ```
+    
+    Monitor closely, especially during the first few hours.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Explore Strategies" icon="chess" href="/strategies/overview">
+    Learn about other built-in strategies like XEMM, VWAP, and DCA
+  </Card>
+  
+  <Card title="Architecture Deep Dive" icon="sitemap" href="/architecture">
+    Understand Controllers, Executors, and the V2 framework
+  </Card>
+  
+  <Card title="Create Custom Strategy" icon="code" href="/development/custom-scripts">
+    Build your own strategy from scratch
+  </Card>
+  
+  <Card title="Configure Exchanges" icon="building-columns" href="/connectors/overview">
+    Set up API keys for different exchanges
+  </Card>
+</CardGroup>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Orders not filling">
+    - **Too wide spreads**: Your bid/ask spreads might be too large. Try reducing them.
+    - **Low volume pair**: Choose a more liquid trading pair.
+    - **Check order book**: Use `>>> orderbook` to see current market depth.
+  </Accordion>
+  
+  <Accordion title="Insufficient balance errors">
+    - **Increase balance**: In paper trading, you can add more test funds.
+    - **Reduce order_amount**: Make orders smaller to fit your available balance.
+    - **Check budget**: The `adjust_proposal_to_budget()` method may be rejecting orders.
+  </Accordion>
+  
+  <Accordion title="Strategy keeps canceling orders">
+    - **order_refresh_time too short**: Increase to 30-60 seconds to reduce API calls.
+    - **Price volatility**: In volatile markets, orders may need frequent updates.
+  </Accordion>
+  
+  <Accordion title="Script not found">
+    Ensure the script exists:
+    ```bash
+    ls scripts/simple_pmm.py
+    ```
+    
+    If missing, pull the latest code:
+    ```bash
+    git pull origin master
+    ```
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+Join the [Hummingbot Discord](https://discord.gg/hummingbot) to get help from the community, share your strategies, and learn from other traders.
+</Tip>

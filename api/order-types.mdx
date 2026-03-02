@@ -1,0 +1,292 @@
+---
+title: Order Types
+description: Order type enums and data structures used throughout the Hummingbot framework
+---
+
+## OrderType
+
+Enum defining the types of orders supported by Hummingbot.
+
+**Source:** `hummingbot/core/data_type/common.py:8`
+
+<ResponseField name="MARKET" type="int" default="1">
+  Market order - executed immediately at the current market price
+</ResponseField>
+
+<ResponseField name="LIMIT" type="int" default="2">
+  Limit order - executed only at the specified price or better
+</ResponseField>
+
+<ResponseField name="LIMIT_MAKER" type="int" default="3">
+  Limit maker order - ensures the order is posted to the order book and not immediately filled
+</ResponseField>
+
+<ResponseField name="AMM_SWAP" type="int" default="4">
+  AMM swap order - swap tokens through an automated market maker
+</ResponseField>
+
+<ResponseField name="AMM_ADD" type="int" default="5">
+  Add liquidity to AMM/CLMM pool
+</ResponseField>
+
+<ResponseField name="AMM_REMOVE" type="int" default="6">
+  Remove liquidity from AMM/CLMM pool
+</ResponseField>
+
+### Methods
+
+<ResponseField name="is_limit_type()" type="bool">
+  Returns `True` if the order type is `LIMIT` or `LIMIT_MAKER`
+</ResponseField>
+
+## OrderState
+
+Enum representing the lifecycle states of an order.
+
+**Source:** `hummingbot/core/data_type/in_flight_order.py:25`
+
+<ResponseField name="PENDING_CREATE" type="int" default="0">
+  Order creation is pending
+</ResponseField>
+
+<ResponseField name="OPEN" type="int" default="1">
+  Order is open and active on the exchange
+</ResponseField>
+
+<ResponseField name="PENDING_CANCEL" type="int" default="2">
+  Order cancellation is pending
+</ResponseField>
+
+<ResponseField name="CANCELED" type="int" default="3">
+  Order has been canceled
+</ResponseField>
+
+<ResponseField name="PARTIALLY_FILLED" type="int" default="4">
+  Order has been partially filled
+</ResponseField>
+
+<ResponseField name="FILLED" type="int" default="5">
+  Order has been completely filled
+</ResponseField>
+
+<ResponseField name="FAILED" type="int" default="6">
+  Order has failed
+</ResponseField>
+
+<ResponseField name="PENDING_APPROVAL" type="int" default="7">
+  Order is pending approval (e.g., for DEX transactions)
+</ResponseField>
+
+<ResponseField name="APPROVED" type="int" default="8">
+  Order has been approved
+</ResponseField>
+
+<ResponseField name="CREATED" type="int" default="9">
+  Order has been created
+</ResponseField>
+
+<ResponseField name="COMPLETED" type="int" default="10">
+  Order has been completed
+</ResponseField>
+
+## OpenOrder
+
+NamedTuple representing an open order on an exchange.
+
+**Source:** `hummingbot/core/data_type/common.py:20`
+
+<ResponseField name="client_order_id" type="str">
+  Client-assigned unique identifier for the order
+</ResponseField>
+
+<ResponseField name="trading_pair" type="str">
+  Trading pair for the order (e.g., "BTC-USDT")
+</ResponseField>
+
+<ResponseField name="price" type="Decimal">
+  Order price
+</ResponseField>
+
+<ResponseField name="amount" type="Decimal">
+  Order amount
+</ResponseField>
+
+<ResponseField name="executed_amount" type="Decimal">
+  Amount already executed
+</ResponseField>
+
+<ResponseField name="status" type="str">
+  Order status
+</ResponseField>
+
+<ResponseField name="order_type" type="OrderType">
+  Type of the order
+</ResponseField>
+
+<ResponseField name="is_buy" type="bool">
+  `True` if the order is a buy order, `False` if sell
+</ResponseField>
+
+<ResponseField name="time" type="int">
+  Order creation timestamp
+</ResponseField>
+
+<ResponseField name="exchange_order_id" type="str">
+  Exchange-assigned order identifier
+</ResponseField>
+
+## MarketOrder
+
+NamedTuple representing a market order.
+
+**Source:** `hummingbot/core/data_type/market_order.py:8`
+
+<ResponseField name="order_id" type="str">
+  Unique identifier for the order
+</ResponseField>
+
+<ResponseField name="trading_pair" type="str">
+  Trading pair for the order
+</ResponseField>
+
+<ResponseField name="is_buy" type="bool">
+  `True` for buy orders, `False` for sell orders
+</ResponseField>
+
+<ResponseField name="base_asset" type="str">
+  Base asset of the trading pair
+</ResponseField>
+
+<ResponseField name="quote_asset" type="str">
+  Quote asset of the trading pair
+</ResponseField>
+
+<ResponseField name="amount" type="float">
+  Order amount
+</ResponseField>
+
+<ResponseField name="timestamp" type="float">
+  Order creation timestamp
+</ResponseField>
+
+<ResponseField name="position" type="PositionAction" default="PositionAction.NIL">
+  Position action (for derivatives)
+</ResponseField>
+
+### Methods
+
+<ResponseField name="to_pandas(market_orders)" type="classmethod">
+  Converts a list of MarketOrder objects to a pandas DataFrame
+</ResponseField>
+
+<ResponseField name="order_type()" type="OrderType">
+  Returns `OrderType.MARKET`
+</ResponseField>
+
+<ResponseField name="copy_with_id(client_order_id)" type="MarketOrder">
+  Creates a copy of the order with a new client order ID
+</ResponseField>
+
+## OrderCandidate
+
+Dataclass containing a complete picture of the impact of a potential order on the user account.
+
+**Source:** `hummingbot/core/data_type/order_candidate.py:17`
+
+<Note>
+  **WARNING:** Do not use this class for sizing. Instead, use the `BudgetChecker`.
+</Note>
+
+<ResponseField name="trading_pair" type="str">
+  Trading pair for the order
+</ResponseField>
+
+<ResponseField name="is_maker" type="bool">
+  Whether the order is a maker order
+</ResponseField>
+
+<ResponseField name="order_type" type="OrderType">
+  Type of the order
+</ResponseField>
+
+<ResponseField name="order_side" type="TradeType">
+  Side of the order (BUY or SELL)
+</ResponseField>
+
+<ResponseField name="amount" type="Decimal">
+  Order amount
+</ResponseField>
+
+<ResponseField name="price" type="Decimal">
+  Order price
+</ResponseField>
+
+<ResponseField name="order_collateral" type="Optional[TokenAmount]">
+  Base collateral required for the order
+</ResponseField>
+
+<ResponseField name="percent_fee_collateral" type="Optional[TokenAmount]">
+  Percentage-fee collateral
+</ResponseField>
+
+<ResponseField name="percent_fee_value" type="Optional[TokenAmount]">
+  Percentage fee value
+</ResponseField>
+
+<ResponseField name="fixed_fee_collaterals" type="List[TokenAmount]">
+  Fixed-fee collaterals
+</ResponseField>
+
+<ResponseField name="potential_returns" type="Optional[TokenAmount]">
+  Potential return of the order
+</ResponseField>
+
+<ResponseField name="resized" type="bool" default="False">
+  Whether the order has been resized
+</ResponseField>
+
+<ResponseField name="from_total_balances" type="bool" default="False">
+  Whether the order is from total balances
+</ResponseField>
+
+### Properties
+
+<ResponseField name="collateral_dict" type="Dict">
+  Dictionary mapping tokens to their required collateral amounts
+</ResponseField>
+
+<ResponseField name="is_zero_order" type="bool">
+  `True` if the order amount is zero
+</ResponseField>
+
+### Methods
+
+<ResponseField name="get_size_token_and_order_size()" type="TokenAmount">
+  Returns the size token and order size
+</ResponseField>
+
+<ResponseField name="set_to_zero()" type="None">
+  Sets the order amount to zero
+</ResponseField>
+
+<ResponseField name="populate_collateral_entries(exchange)" type="None">
+  Populates all collateral entries based on the exchange
+</ResponseField>
+
+<ResponseField name="adjust_from_balances(available_balances)" type="None">
+  Adjusts the order based on available balances
+</ResponseField>
+
+## PerpetualOrderCandidate
+
+Extends OrderCandidate for perpetual derivative orders.
+
+**Source:** `hummingbot/core/data_type/order_candidate.py:271`
+
+<ResponseField name="leverage" type="Decimal" default="1">
+  Leverage for the order
+</ResponseField>
+
+<ResponseField name="position_close" type="bool" default="False">
+  Whether this order closes a position
+</ResponseField>

@@ -1,0 +1,485 @@
+---
+title: 'Gateway Configuration'
+description: 'Configure Gateway for secure production use, manage wallets, and set up blockchain connections'
+keywords: ['gateway', 'configuration', 'ssl', 'https', 'security', 'wallets']
+icon: 'gear'
+---
+
+Gateway configuration involves setting up secure communication, managing wallet connections, and configuring blockchain network settings.
+
+## Development vs Production Modes
+
+Gateway can operate in two distinct modes with different security characteristics:
+
+### Development Mode (Default)
+
+<Warning>
+Development mode is **not secure** for production use. Only use it for local testing and development.
+</Warning>
+
+Development mode characteristics:
+
+- **Protocol**: HTTP (unencrypted)
+- **Default Port**: 15888
+- **Authentication**: None
+- **Certificates**: Not required
+- **Use Cases**: Local testing, development, learning
+
+**Configuration:**
+
+```bash
+# Start Gateway in development mode (default)
+DEV=true docker-compose up -d
+```
+
+### Production Mode
+
+<Check>
+Production mode provides encrypted HTTPS communication and certificate-based authentication.
+</Check>
+
+Production mode characteristics:
+
+- **Protocol**: HTTPS (encrypted)
+- **Default Port**: 15888
+- **Authentication**: Mutual TLS (client certificates)
+- **Certificates**: Required (CA cert, client cert, client key)
+- **Use Cases**: Production trading, remote access, any deployment with real funds
+
+**Configuration:**
+
+<Steps>
+  <Step title="Generate Certificates">
+    From the Hummingbot CLI, generate SSL certificates:
+    
+    ```bash
+    gateway generate-certs
+    ```
+    
+    This creates three files in the `certs/` directory:
+    - `ca_cert.pem` - Certificate Authority certificate
+    - `client_cert.pem` - Client certificate for authentication
+    - `client_key.pem` - Private key for the client certificate
+  </Step>
+  
+  <Step title="Enable Production Mode">
+    Set the `DEV` environment variable to `false`:
+    
+    ```bash
+    # Stop containers
+    docker-compose down
+    
+    # Start in production mode
+    DEV=false docker-compose up -d
+    ```
+  </Step>
+  
+  <Step title="Verify HTTPS">
+    Confirm Gateway is using HTTPS:
+    
+    ```bash
+    # In Hummingbot CLI
+    gateway status
+    ```
+    
+    The output should show an HTTPS URL (https://localhost:15888).
+  </Step>
+</Steps>
+
+<Info>
+Certificates are automatically loaded from the `certs/` directory. Hummingbot will use these certificates to establish secure communication with Gateway.
+</Info>
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Always Use HTTPS in Production" icon="lock">
+    Never run Gateway in development mode (HTTP) with real funds or on untrusted networks.
+  </Card>
+  
+  <Card title="Protect Your Certificates" icon="key">
+    Keep certificate files secure. Anyone with access to your certificates can communicate with Gateway.
+  </Card>
+  
+  <Card title="Use Firewall Rules" icon="shield">
+    Restrict access to port 15888 using firewall rules if running on a remote server.
+  </Card>
+  
+  <Card title="Regular Certificate Rotation" icon="rotate">
+    Regenerate certificates periodically for enhanced security.
+  </Card>
+</CardGroup>
+
+## Wallet Configuration
+
+Gateway requires wallet private keys to sign and submit blockchain transactions.
+
+### Adding a Wallet
+
+To add a wallet to Gateway:
+
+<Steps>
+  <Step title="Access Gateway Connect Command">
+    In the Hummingbot CLI:
+    
+    ```bash
+    gateway connect ethereum
+    ```
+    
+    Replace `ethereum` with your target chain.
+  </Step>
+  
+  <Step title="Enter Private Key">
+    You'll be prompted to enter your wallet's private key:
+    
+    ```bash
+    Enter your ethereum private key >>>
+    ```
+    
+    <Warning>
+    Your private key is stored locally in encrypted format. Never share your private key or expose it in logs.
+    </Warning>
+  </Step>
+  
+  <Step title="Verify Connection">
+    Check your wallet connection:
+    
+    ```bash
+    gateway connector-status
+    ```
+  </Step>
+</Steps>
+
+### Multiple Wallets
+
+You can configure different wallets for different chains:
+
+```bash
+# Add Ethereum wallet
+gateway connect ethereum
+
+# Add Polygon wallet (can be the same private key)
+gateway connect polygon
+
+# Add Solana wallet (different key format)
+gateway connect solana
+```
+
+<Tip>
+You can use the same private key (wallet address) across EVM-compatible chains like Ethereum, Polygon, BSC, and Avalanche.
+</Tip>
+
+### Wallet Security
+
+Wallet private keys are stored in Gateway's configuration:
+
+- **Location**: `conf/connectors/` directory
+- **Format**: Encrypted JSON files
+- **Encryption**: Uses the same password as your Hummingbot configuration
+
+<Danger>
+Backup your `conf/` directory regularly. Loss of this directory means loss of access to your configured wallets within Gateway.
+</Danger>
+
+## Network Configuration
+
+Gateway connects to blockchain networks via RPC endpoints. You can configure custom RPC endpoints for better performance or privacy.
+
+### Using Default RPC Endpoints
+
+Gateway comes with default public RPC endpoints for common chains. These work out of the box but may have rate limits.
+
+### Configuring Custom RPC Endpoints
+
+For production use, configure your own RPC endpoints:
+
+<CodeGroup>
+
+```yaml Ethereum
+# Edit conf/ethereum.yml
+networks:
+  mainnet:
+    nodeURL: 'https://your-ethereum-node-url'
+    chainID: 1
+```
+
+```yaml Polygon
+# Edit conf/polygon.yml
+networks:
+  mainnet:
+    nodeURL: 'https://your-polygon-node-url'
+    chainID: 137
+```
+
+```yaml BSC
+# Edit conf/binance-smart-chain.yml
+networks:
+  mainnet:
+    nodeURL: 'https://your-bsc-node-url'
+    chainID: 56
+```
+
+</CodeGroup>
+
+### RPC Provider Recommendations
+
+<Tabs>
+  <Tab title="Alchemy">
+    **Alchemy** provides reliable RPC endpoints with generous free tiers.
+    
+    - Free tier: 300M compute units/month
+    - Supported chains: Ethereum, Polygon, Arbitrum, Optimism
+    - Dashboard: [alchemy.com](https://www.alchemy.com)
+    
+    ```yaml
+    nodeURL: 'https://eth-mainnet.g.alchemy.com/v2/YOUR-API-KEY'
+    ```
+  </Tab>
+  
+  <Tab title="Infura">
+    **Infura** is a popular provider with extensive chain support.
+    
+    - Free tier: 100,000 requests/day
+    - Supported chains: Ethereum, Polygon, Arbitrum, Optimism
+    - Dashboard: [infura.io](https://www.infura.io)
+    
+    ```yaml
+    nodeURL: 'https://mainnet.infura.io/v3/YOUR-PROJECT-ID'
+    ```
+  </Tab>
+  
+  <Tab title="QuickNode">
+    **QuickNode** offers high-performance endpoints.
+    
+    - Free tier: 5M requests/month
+    - Supported chains: 20+ chains including Solana
+    - Dashboard: [quicknode.com](https://www.quicknode.com)
+    
+    ```yaml
+    nodeURL: 'https://your-endpoint.quiknode.pro/YOUR-API-KEY/'
+    ```
+  </Tab>
+  
+  <Tab title="Self-Hosted">
+    **Run Your Own Node** for maximum control and privacy.
+    
+    Popular node software:
+    - **Ethereum**: Geth, Erigon
+    - **Polygon**: Bor + Heimdall
+    - **BSC**: BSC Geth
+    
+    ```yaml
+    nodeURL: 'http://localhost:8545'
+    ```
+  </Tab>
+</Tabs>
+
+## Gas Configuration
+
+Configure gas settings for optimal transaction execution:
+
+### Gas Price Strategy
+
+Gateway supports multiple gas price strategies:
+
+```yaml
+# conf/ethereum.yml
+gas:
+  # Strategy: 'fast', 'medium', 'slow', or 'custom'
+  strategy: 'fast'
+  
+  # Custom gas price (in Gwei) - only used if strategy is 'custom'
+  customGasPrice: 50
+  
+  # Gas limit multiplier (1.0 = 100% of estimated gas)
+  gasLimitMultiplier: 1.2
+```
+
+<Info>
+**Strategy options:**
+- `fast` - Higher gas price for faster confirmation (1-2 blocks)
+- `medium` - Standard gas price (2-5 blocks)
+- `slow` - Lower gas price for cost savings (5+ blocks)
+- `custom` - Specify exact gas price in Gwei
+</Info>
+
+### EIP-1559 Support
+
+For chains supporting EIP-1559 (like Ethereum post-London fork):
+
+```yaml
+gas:
+  eip1559:
+    enabled: true
+    maxPriorityFeePerGas: 2  # in Gwei
+    maxFeePerGas: 100         # in Gwei
+```
+
+## Connector-Specific Configuration
+
+Each DEX connector may have additional configuration options:
+
+### Uniswap Configuration
+
+```yaml
+# conf/uniswap.yml
+uniswap:
+  router:
+    version: 'v3'  # 'v2' or 'v3'
+  
+  # Slippage tolerance (percentage)
+  slippageTolerance: 1.0
+  
+  # Transaction deadline (seconds from now)
+  ttl: 300
+```
+
+### SushiSwap Configuration
+
+```yaml
+# conf/sushiswap.yml
+sushiswap:
+  # Slippage tolerance (percentage)
+  slippageTolerance: 2.0
+  
+  # Transaction deadline (seconds from now)
+  ttl: 600
+```
+
+## Environment Variables
+
+Key environment variables for Gateway configuration:
+
+| Variable | Description | Default |
+|----------|-------------|----------|
+| `DEV` | Enable development mode (HTTP) | `true` |
+| `GATEWAY_HOST` | Gateway host address | `localhost` |
+| `GATEWAY_PORT` | Gateway port | `15888` |
+| `CERT_PATH` | Path to certificates directory | `/home/gateway/certs` |
+| `CONFIG_PATH` | Path to configuration directory | `/home/gateway/conf` |
+
+## Configuration Files
+
+Gateway configuration is stored in YAML files:
+
+```
+conf/
+├── ssl.yml                  # SSL/TLS configuration
+├── server.yml               # Server settings
+├── ethereum.yml             # Ethereum network config
+├── polygon.yml              # Polygon network config
+├── binance-smart-chain.yml  # BSC network config
+├── avalanche.yml            # Avalanche network config
+└── connectors/
+    ├── uniswap.yml          # Uniswap connector config
+    ├── sushiswap.yml        # SushiSwap connector config
+    └── pancakeswap.yml      # PancakeSwap connector config
+```
+
+<Warning>
+After modifying configuration files, restart Gateway for changes to take effect:
+
+```bash
+docker-compose restart gateway
+```
+</Warning>
+
+## Testing Configuration
+
+Verify your Gateway configuration:
+
+<Steps>
+  <Step title="Check Gateway Status">
+    ```bash
+    gateway status
+    ```
+  </Step>
+  
+  <Step title="Test Chain Connection">
+    ```bash
+    gateway test-connection ethereum
+    ```
+  </Step>
+  
+  <Step title="Verify Wallet Balance">
+    ```bash
+    balance
+    ```
+    
+    Check that your wallet balances are displayed correctly.
+  </Step>
+  
+  <Step title="Test Token Approval (Optional)">
+    ```bash
+    gateway approve-token ethereum uniswap WETH
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Certificate errors">
+    **Symptom**: SSL/TLS connection errors
+    
+    **Solution**:
+    1. Regenerate certificates: `gateway generate-certs`
+    2. Verify certificate files exist in `certs/` directory
+    3. Ensure Gateway is running in production mode: `DEV=false`
+    4. Restart Gateway after regenerating certificates
+  </Accordion>
+  
+  <Accordion title="RPC connection failures">
+    **Symptom**: "Unable to connect to network" errors
+    
+    **Solution**:
+    1. Verify RPC endpoint URL is correct
+    2. Check that RPC provider is online and accessible
+    3. Ensure API key (if required) is valid
+    4. Test RPC endpoint manually:
+       ```bash
+       curl -X POST -H "Content-Type: application/json" \
+         --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+         YOUR_RPC_URL
+       ```
+  </Accordion>
+  
+  <Accordion title="Wallet not found">
+    **Symptom**: Gateway cannot find configured wallet
+    
+    **Solution**:
+    1. Reconnect wallet: `gateway connect <chain>`
+    2. Verify wallet configuration exists in `conf/connectors/`
+    3. Check that encryption password matches Hummingbot password
+  </Accordion>
+  
+  <Accordion title="Transaction failures">
+    **Symptom**: Transactions fail or revert
+    
+    **Solution**:
+    1. Increase gas limit multiplier in configuration
+    2. Adjust slippage tolerance for the connector
+    3. Ensure sufficient native token balance for gas fees
+    4. Check Gateway logs for detailed error messages
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Supported Chains" icon="link" href="/gateway/supported-chains">
+    View all available blockchains and DEX protocols
+  </Card>
+  
+  <Card title="AMM DEX Connectors" icon="arrow-right-arrow-left" href="/connectors/amm-dex">
+    Learn about trading on AMM DEXs
+  </Card>
+  
+  <Card title="CLI Commands" icon="terminal" href="/cli/overview">
+    Gateway-related CLI commands reference
+  </Card>
+  
+  <Card title="Security" icon="shield" href="/configuration/security">
+    Security best practices for Hummingbot
+  </Card>
+</CardGroup>

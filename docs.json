@@ -1,122 +1,148 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Hummingbot",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#00D4AA",
+    "light": "#00D4AA",
+    "dark": "#00D4AA"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/hummingbot/hummingbot"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/hummingbot/hummingbot",
+      "twitter": "https://twitter.com/_hummingbot",
+      "discord": "https://discord.gg/hummingbot",
+      "youtube": "https://www.youtube.com/@hummingbot"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
+              "installation",
               "quickstart",
-              "development"
+              "architecture"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/strategies",
+              "concepts/connectors",
+              "concepts/exchange-types",
+              "concepts/order-types",
+              "concepts/market-data"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Built-in Strategies",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "strategies/overview",
+              "strategies/pure-market-making",
+              "strategies/cross-exchange-market-making",
+              "strategies/amm-arbitrage",
+              "strategies/avellaneda-market-making",
+              "strategies/perpetual-market-making",
+              "strategies/spot-perpetual-arbitrage"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Exchange Connectors",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "connectors/overview",
+              "connectors/clob-cex-spot",
+              "connectors/clob-cex-perpetual",
+              "connectors/clob-dex-spot",
+              "connectors/clob-dex-perpetual",
+              "connectors/amm-dex"
+            ]
+          },
+          {
+            "group": "Strategy Development",
+            "pages": [
+              "development/overview",
+              "development/strategy-v2",
+              "development/controllers",
+              "development/executors",
+              "development/custom-scripts",
+              "development/backtesting"
+            ]
+          },
+          {
+            "group": "Gateway",
+            "pages": [
+              "gateway/overview",
+              "gateway/installation",
+              "gateway/configuration",
+              "gateway/supported-chains"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/config-files",
+              "configuration/security",
+              "configuration/global-settings",
+              "configuration/paper-trading"
+            ]
+          },
+          {
+            "group": "CLI Commands",
+            "pages": [
+              "cli/overview",
+              "cli/balance",
+              "cli/config",
+              "cli/connect",
+              "cli/create",
+              "cli/start-stop",
+              "cli/history",
+              "cli/status"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Core",
             "pages": [
-              "api-reference/introduction"
+              "api/strategy-base",
+              "api/connector-base",
+              "api/trading-rule",
+              "api/order-tracker"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Strategy V2",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/runnable-base",
+              "api/controllers",
+              "api/executors",
+              "api/models"
+            ]
+          },
+          {
+            "group": "Data Types",
+            "pages": [
+              "api/order-types",
+              "api/trade-types",
+              "api/market-data"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

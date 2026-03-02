@@ -1,0 +1,414 @@
+---
+title: 'Supported Chains and DEXs'
+description: 'Complete list of blockchain networks and decentralized exchanges supported by Gateway'
+keywords: ['gateway', 'blockchain', 'chains', 'dex', 'networks', 'ethereum', 'polygon', 'solana']
+icon: 'link'
+---
+
+Gateway provides standardized access to multiple blockchain networks and DEX protocols. This page lists all currently supported chains and their associated DEX connectors.
+
+## EVM-Compatible Chains
+
+Gateway supports the following EVM-compatible blockchain networks:
+
+### Ethereum
+
+<Card title="Ethereum Mainnet" icon="ethereum">
+  **Chain ID**: 1  
+  **Native Token**: ETH  
+  **Block Time**: ~12 seconds  
+  **Consensus**: Proof of Stake
+  
+  **Supported DEXs:**
+  - Uniswap (Router, AMM, CLMM)
+  - SushiSwap (AMM)
+  - Balancer (AMM)
+  - Curve (AMM)
+  - 0x Protocol (Router)
+</Card>
+
+**Configuration:**
+```bash
+gateway connect ethereum
+```
+
+### Polygon
+
+<Card title="Polygon (Matic)" icon="hexagon">
+  **Chain ID**: 137  
+  **Native Token**: MATIC  
+  **Block Time**: ~2 seconds  
+  **Consensus**: Proof of Stake
+  
+  **Supported DEXs:**
+  - QuickSwap (AMM)
+  - SushiSwap (AMM)
+  - Uniswap V3 (CLMM)
+</Card>
+
+**Configuration:**
+```bash
+gateway connect polygon
+```
+
+### BNB Smart Chain (BSC)
+
+<Card title="BNB Smart Chain" icon="coins">
+  **Chain ID**: 56  
+  **Native Token**: BNB  
+  **Block Time**: ~3 seconds  
+  **Consensus**: Proof of Staked Authority
+  
+  **Supported DEXs:**
+  - PancakeSwap (AMM)
+</Card>
+
+**Configuration:**
+```bash
+gateway connect binance-smart-chain
+```
+
+### Avalanche
+
+<Card title="Avalanche C-Chain" icon="mountain">
+  **Chain ID**: 43114  
+  **Native Token**: AVAX  
+  **Block Time**: ~2 seconds  
+  **Consensus**: Avalanche Consensus
+  
+  **Supported DEXs:**
+  - Trader Joe (AMM)
+  - SushiSwap (AMM)
+</Card>
+
+**Configuration:**
+```bash
+gateway connect avalanche
+```
+
+### Arbitrum
+
+<Card title="Arbitrum One" icon="diagram-next">
+  **Chain ID**: 42161  
+  **Native Token**: ETH  
+  **Block Time**: ~0.25 seconds  
+  **Type**: Ethereum Layer 2 (Optimistic Rollup)
+  
+  **Supported DEXs:**
+  - Uniswap V3 (CLMM)
+  - SushiSwap (AMM)
+</Card>
+
+**Configuration:**
+```bash
+gateway connect arbitrum
+```
+
+### Optimism
+
+<Card title="Optimism" icon="circle-o">
+  **Chain ID**: 10  
+  **Native Token**: ETH  
+  **Block Time**: ~2 seconds  
+  **Type**: Ethereum Layer 2 (Optimistic Rollup)
+  
+  **Supported DEXs:**
+  - Uniswap V3 (CLMM)
+</Card>
+
+**Configuration:**
+```bash
+gateway connect optimism
+```
+
+## Non-EVM Chains
+
+### Solana
+
+<Card title="Solana" icon="s">
+  **Native Token**: SOL  
+  **Block Time**: ~400ms  
+  **Consensus**: Proof of History + Proof of Stake  
+  **TPS**: ~65,000
+  
+  **Supported DEXs:**
+  - Jupiter (Router)
+  - Raydium (AMM, CLMM)
+  - Meteora (CLMM)
+</Card>
+
+**Configuration:**
+```bash
+gateway connect solana
+```
+
+<Note>
+Solana uses a different wallet format than EVM chains. You'll need a Solana-specific private key when connecting.
+</Note>
+
+## DEX Protocols by Type
+
+### Router DEXs (DEX Aggregators)
+
+Router protocols find optimal swap routes across multiple liquidity sources:
+
+<CardGroup cols={2}>
+  <Card title="Uniswap Router" icon="route" href="https://hummingbot.org/exchanges/gateway/uniswap/">
+    **Chains**: Ethereum, Polygon, Arbitrum, Optimism  
+    **Type**: Router, AMM, CLMM  
+    **Connector ID**: `uniswap`
+    
+    Supports V2 (AMM) and V3 (CLMM) protocols with intelligent routing.
+  </Card>
+  
+  <Card title="0x Protocol" icon="0" href="https://hummingbot.org/exchanges/gateway/0x/">
+    **Chains**: Ethereum, Polygon, BSC, Avalanche  
+    **Type**: Router  
+    **Connector ID**: `0x`
+    
+    Aggregates liquidity from multiple DEXs and market makers.
+  </Card>
+  
+  <Card title="Jupiter" icon="planet-ringed" href="https://hummingbot.org/exchanges/gateway/jupiter/">
+    **Chains**: Solana  
+    **Type**: Router  
+    **Connector ID**: `jupiter`
+    
+    Leading DEX aggregator on Solana with optimal route finding.
+  </Card>
+</CardGroup>
+
+### AMM DEXs (Constant Product)
+
+Traditional automated market makers using x*y=k formula:
+
+<CardGroup cols={2}>
+  <Card title="SushiSwap" icon="sushi" href="https://hummingbot.org/exchanges/gateway/sushiswap/">
+    **Chains**: Ethereum, Polygon, Arbitrum, Avalanche  
+    **Type**: AMM  
+    **Connector ID**: `sushiswap`
+  </Card>
+  
+  <Card title="PancakeSwap" icon="pancakes" href="https://hummingbot.org/exchanges/gateway/pancakeswap/">
+    **Chains**: BNB Smart Chain  
+    **Type**: AMM  
+    **Connector ID**: `pancakeswap`
+  </Card>
+  
+  <Card title="Trader Joe" icon="user-chef" href="https://hummingbot.org/exchanges/gateway/traderjoe/">
+    **Chains**: Avalanche  
+    **Type**: AMM  
+    **Connector ID**: `traderjoe`
+  </Card>
+  
+  <Card title="QuickSwap" icon="bolt" href="https://hummingbot.org/exchanges/gateway/quickswap/">
+    **Chains**: Polygon  
+    **Type**: AMM  
+    **Connector ID**: `quickswap`
+  </Card>
+  
+  <Card title="Balancer" icon="scale-balanced" href="https://hummingbot.org/exchanges/gateway/balancer/">
+    **Chains**: Ethereum, Polygon, Arbitrum  
+    **Type**: AMM (Weighted Pools)  
+    **Connector ID**: `balancer`
+  </Card>
+  
+  <Card title="Curve" icon="chart-curve" href="https://hummingbot.org/exchanges/gateway/curve/">
+    **Chains**: Ethereum, Polygon, Arbitrum  
+    **Type**: AMM (Stableswap)  
+    **Connector ID**: `curve`
+  </Card>
+  
+  <Card title="Raydium AMM" icon="radiation" href="https://hummingbot.org/exchanges/gateway/raydium/">
+    **Chains**: Solana  
+    **Type**: AMM, CLMM  
+    **Connector ID**: `raydium`
+  </Card>
+</CardGroup>
+
+### CLMM DEXs (Concentrated Liquidity)
+
+Concentrated liquidity market makers with custom price ranges:
+
+<CardGroup cols={2}>
+  <Card title="Uniswap V3" icon="droplet" href="https://hummingbot.org/exchanges/gateway/uniswap/">
+    **Chains**: Ethereum, Polygon, Arbitrum, Optimism  
+    **Type**: CLMM  
+    **Connector ID**: `uniswap`
+    
+    Capital-efficient liquidity provision with custom price ranges.
+  </Card>
+  
+  <Card title="Raydium CLMM" icon="radiation" href="https://hummingbot.org/exchanges/gateway/raydium/">
+    **Chains**: Solana  
+    **Type**: CLMM  
+    **Connector ID**: `raydium`
+    
+    Concentrated liquidity pools on Solana.
+  </Card>
+  
+  <Card title="Meteora" icon="meteor" href="https://hummingbot.org/exchanges/gateway/meteora/">
+    **Chains**: Solana  
+    **Type**: CLMM  
+    **Connector ID**: `meteora`
+    
+    Dynamic liquidity pools on Solana.
+  </Card>
+</CardGroup>
+
+## Chain Comparison
+
+| Chain | Native Token | Block Time | Avg Gas Cost | DEX Count | Best For |
+|-------|--------------|------------|--------------|-----------|----------|
+| Ethereum | ETH | ~12s | High | 5 | High liquidity, established DeFi |
+| Polygon | MATIC | ~2s | Very Low | 3 | Low-cost trading, high frequency |
+| BSC | BNB | ~3s | Low | 1 | Alternative to Ethereum |
+| Avalanche | AVAX | ~2s | Low | 2 | Fast finality, low fees |
+| Arbitrum | ETH | ~0.25s | Medium | 2 | Ethereum L2, lower fees |
+| Optimism | ETH | ~2s | Medium | 1 | Ethereum L2, lower fees |
+| Solana | SOL | ~0.4s | Very Low | 3 | Ultra-fast, high throughput |
+
+<Tip>
+For high-frequency strategies, consider Polygon or Solana due to their low transaction costs and fast block times.
+</Tip>
+
+## Testing Networks
+
+Gateway also supports testnet networks for development:
+
+<Tabs>
+  <Tab title="Ethereum Testnets">
+    - **Goerli** (deprecated, use Sepolia)
+    - **Sepolia** (recommended)
+    - **Holesky** (for validators)
+    
+    ```bash
+    gateway connect ethereum --network sepolia
+    ```
+  </Tab>
+  
+  <Tab title="Polygon Testnets">
+    - **Mumbai** (Polygon testnet)
+    
+    ```bash
+    gateway connect polygon --network mumbai
+    ```
+  </Tab>
+  
+  <Tab title="BSC Testnets">
+    - **BSC Testnet**
+    
+    ```bash
+    gateway connect binance-smart-chain --network testnet
+    ```
+  </Tab>
+  
+  <Tab title="Solana Testnets">
+    - **Devnet**
+    - **Testnet**
+    
+    ```bash
+    gateway connect solana --network devnet
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+Testnet tokens have no real value. Use testnets only for development and testing purposes.
+</Warning>
+
+## Adding New Chains
+
+Gateway is designed to be extensible. To request support for a new chain or DEX:
+
+<Steps>
+  <Step title="Check Existing Proposals">
+    Review [Github issues](https://github.com/hummingbot/gateway/issues) for existing requests.
+  </Step>
+  
+  <Step title="Submit a Proposal">
+    Create a New Connector Proposal following the [Governance](https://hummingbot.org/governance/) process.
+  </Step>
+  
+  <Step title="Community Vote">
+    Proposals are voted on by HBOT token holders.
+  </Step>
+  
+  <Step title="Development">
+    Approved proposals can be developed by the community or core team.
+  </Step>
+</Steps>
+
+<Note>
+You will need HBOT tokens in your Ethereum wallet to submit a proposal. See [Proposals](https://hummingbot.org/about/proposals/) for more information.
+</Note>
+
+## Chain-Specific Considerations
+
+<AccordionGroup>
+  <Accordion title="Ethereum - High Gas Costs">
+    **Challenge**: Gas fees can be very high during network congestion.
+    
+    **Recommendations**:
+    - Monitor gas prices using tools like [Etherscan Gas Tracker](https://etherscan.io/gastracker)
+    - Trade during off-peak hours (weekends, late night UTC)
+    - Consider using Layer 2 solutions (Arbitrum, Optimism) instead
+    - Use higher trade sizes to amortize gas costs
+  </Accordion>
+  
+  <Accordion title="Polygon - RPC Reliability">
+    **Challenge**: Public RPC endpoints may have rate limits.
+    
+    **Recommendations**:
+    - Use dedicated RPC providers (Alchemy, Infura, QuickNode)
+    - Monitor RPC endpoint health
+    - Have backup RPC endpoints configured
+  </Accordion>
+  
+  <Accordion title="BSC - Centralization">
+    **Challenge**: More centralized than other chains.
+    
+    **Recommendations**:
+    - Be aware of potential network governance decisions
+    - Use BNB for gas fees (cannot use other tokens)
+    - Monitor official BNB Chain announcements
+  </Accordion>
+  
+  <Accordion title="Solana - Different Wallet Format">
+    **Challenge**: Solana uses different key format than EVM chains.
+    
+    **Recommendations**:
+    - Use Solana-specific wallet tools to export private keys
+    - Cannot reuse the same wallet address from Ethereum
+    - Be aware of different transaction structure and rent requirements
+  </Accordion>
+  
+  <Accordion title="Layer 2s - Bridging Required">
+    **Challenge**: Need to bridge assets from Ethereum mainnet.
+    
+    **Recommendations**:
+    - Use official bridges (Arbitrum Bridge, Optimism Gateway)
+    - Account for bridge time (usually 1-7 days for withdrawals)
+    - Keep some native ETH on L2 for gas fees
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Gateway Overview" icon="bridge" href="/gateway/overview">
+    Learn more about how Gateway works
+  </Card>
+  
+  <Card title="Installation" icon="download" href="/gateway/installation">
+    Install Gateway with Hummingbot
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/gateway/configuration">
+    Configure chains and wallets
+  </Card>
+  
+  <Card title="AMM Arbitrage Strategy" icon="chart-line" href="/strategies/amm-arbitrage">
+    Start trading on DEXs
+  </Card>
+</CardGroup>

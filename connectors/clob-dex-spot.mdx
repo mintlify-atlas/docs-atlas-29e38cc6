@@ -1,0 +1,321 @@
+---
+title: CLOB DEX Spot Connectors
+description: Decentralized exchange connectors for on-chain spot trading with order books
+keywords: ['CLOB', 'DEX', 'spot', 'decentralized', 'on-chain', 'wallet', 'blockchain']
+---
+
+CLOB DEX Spot connectors enable trading on decentralized exchanges with on-chain central limit order books. These exchanges are non-custodial, meaning you maintain control of your private keys and funds at all times.
+
+## How CLOB DEX Spot Connectors Work
+
+Decentralized limit order book exchanges combine the transparency of blockchain with traditional order book trading:
+
+<CardGroup cols={2}>
+  <Card title="Non-Custodial" icon="shield">
+    You control your private keys. Trades settle on-chain without surrendering custody
+  </Card>
+  <Card title="On-Chain Settlement" icon="cube">
+    All trades are recorded on the blockchain, providing transparency and auditability
+  </Card>
+  <Card title="Wallet Integration" icon="wallet">
+    Connect using wallet private keys instead of API keys from centralized platforms
+  </Card>
+  <Card title="Gas Management" icon="gas-pump">
+    Transaction fees paid in native blockchain tokens for order placement and execution
+  </Card>
+</CardGroup>
+
+### Key Advantages
+
+<Tabs>
+  <Tab title="Self-Custody">
+    Maintain full control of your assets:
+    - No exchange custody risk
+    - No withdrawal delays or limits
+    - Direct wallet-to-wallet trading
+    - Trustless settlement
+  </Tab>
+  
+  <Tab title="Transparency">
+    All activity is on-chain:
+    - Public order book state
+    - Verifiable trade execution
+    - Auditable transaction history
+    - No hidden trading or wash trading
+  </Tab>
+  
+  <Tab title="Censorship Resistance">
+    Permissionless access:
+    - No KYC requirements
+    - No geographical restrictions
+    - No account freezes or seizures
+    - Programmable settlement
+  </Tab>
+</Tabs>
+
+### Connection Requirements
+
+<Steps>
+  <Step title="Set up a trading wallet">
+    Create a dedicated wallet for trading:
+    - Generate a new wallet address
+    - Fund with tokens for trading
+    - Add native tokens for gas fees
+    
+    <Warning>
+    Always use a dedicated trading wallet. Never use your primary wallet with significant holdings for bot trading.
+    </Warning>
+  </Step>
+  
+  <Step title="Configure RPC endpoint">
+    Set up blockchain connectivity:
+    - Public RPC (free but potentially slower)
+    - Private RPC (paid but faster and more reliable)
+    - Consider redundant endpoints
+  </Step>
+  
+  <Step title="Connect in Hummingbot">
+    Use your wallet private key:
+    ```bash
+    connect [exchange_name]
+    ```
+    Enter your private key when prompted (stored encrypted locally).
+  </Step>
+</Steps>
+
+## Exchange Sponsors
+
+These decentralized spot exchanges actively support Hummingbot:
+
+<AccordionGroup>
+  <Accordion title="Derive" icon="cube">
+    **Connector ID**: `derive`
+    
+    High-performance CLOB DEX on Lyra chain.
+    
+    **Features:**
+    - On-chain order book
+    - Fast settlement (sub-second)
+    - Low gas fees
+    - Spot and derivatives support
+    - Built on Lyra (Optimistic rollup)
+    
+    **Network**: Lyra Chain
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/derive/)
+  </Accordion>
+  
+  <Accordion title="Hyperliquid" icon="cube">
+    **Connector ID**: `hyperliquid`
+    
+    Fully on-chain order book DEX with spot trading.
+    
+    **Features:**
+    - Native L1 blockchain
+    - High-performance matching engine
+    - Spot and perpetual markets
+    - Zero gas fees for makers
+    - Sub-second finality
+    
+    **Network**: Hyperliquid L1
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/hyperliquid/)
+  </Accordion>
+  
+  <Accordion title="XRP Ledger" icon="cube">
+    **Connector ID**: `xrpl`
+    
+    Native decentralized exchange on XRP Ledger.
+    
+    **Features:**
+    - Built-in DEX functionality
+    - Pathfinding for multi-hop trades
+    - Auto-bridging via XRP
+    - Low transaction costs
+    - 3-5 second settlement
+    
+    **Network**: XRP Ledger
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/xrpl/)
+  </Accordion>
+</AccordionGroup>
+
+## Other Supported Exchanges
+
+The following CLOB DEX spot exchanges are maintained through governance:
+
+<CardGroup cols={2}>
+  <Card title="Dexalot" icon="cube">
+    **Connector ID**: `dexalot`
+    
+    Order book DEX on Avalanche subnet.
+    
+    **Features:**
+    - Dedicated Avalanche subnet
+    - Gas-free trading
+    - Familiar order book interface
+    - Bridge from C-Chain
+    
+    **Network**: Dexalot Subnet (Avalanche)
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/dexalot/)
+  </Card>
+  
+  <Card title="Injective Helix" icon="cube">
+    **Connector ID**: `injective_v2`
+    
+    Fully decentralized order book exchange.
+    
+    **Features:**
+    - Layer-1 blockchain
+    - Lightning-fast trades
+    - Zero gas fees
+    - Cross-chain bridges
+    - MEV resistant
+    
+    **Network**: Injective
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/injective/)
+  </Card>
+  
+  <Card title="Vertex" icon="cube">
+    **Connector ID**: `vertex`
+    
+    Hybrid CLOB DEX on Arbitrum.
+    
+    **Features:**
+    - Order book and AMM
+    - Integrated money markets
+    - Cross-margined positions
+    - Fast execution
+    
+    **Network**: Arbitrum One
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/vertex/)
+  </Card>
+</CardGroup>
+
+## Supported Features
+
+CLOB DEX Spot connectors support order book trading features:
+
+| Feature | Support |
+|---------|--------|
+| Limit orders | Yes |
+| Market orders | Yes |
+| Post-only orders | Yes (exchange dependent) |
+| Order cancellation | Yes |
+| Order book data | Yes |
+| On-chain settlement | Yes |
+| Gas estimation | Yes |
+| Nonce management | Automatic |
+| Transaction retry | Yes |
+
+<Note>
+Gas fees vary by blockchain network and congestion. Always maintain sufficient native tokens for gas.
+</Note>
+
+## Gas Fee Considerations
+
+Unlike centralized exchanges, CLOB DEXs require gas fees:
+
+<Info>
+**Gas Fee Structure**
+- **Order placement**: Gas fee to submit order on-chain
+- **Order cancellation**: Gas fee to cancel (some exchanges)
+- **Trade execution**: Gas fee paid by taker
+- **Batch operations**: Some DEXs support batching to reduce fees
+</Info>
+
+<Tip>
+**Optimizing Gas Costs**
+
+1. Choose Layer 2 or app-specific chains with lower fees
+2. Batch operations when possible
+3. Use longer-lived orders to reduce placement frequency
+4. Monitor gas prices and trade during low-congestion periods
+5. Consider maker-only strategies on exchanges with maker rebates
+</Tip>
+
+## Wallet Security
+
+<Warning>
+**Private Key Safety**
+
+CLOB DEX connectors require your wallet private key:
+- Keys are encrypted and stored locally only
+- Never shared with external servers
+- Use a dedicated trading wallet with limited funds
+- Regularly rotate wallets and test recovery procedures
+- Consider hardware wallet integration where supported
+</Warning>
+
+## Blockchain Connectivity
+
+Reliable RPC connectivity is critical:
+
+<Tabs>
+  <Tab title="Public RPCs">
+    Free RPC endpoints:
+    - Lower cost (free)
+    - Rate limited
+    - Potentially slower
+    - Less reliable during high load
+    
+    **Best for**: Testing and low-frequency strategies
+  </Tab>
+  
+  <Tab title="Private RPCs">
+    Paid RPC services:
+    - Higher throughput
+    - Better reliability
+    - Lower latency
+    - Dedicated support
+    
+    **Providers**: Alchemy, Infura, QuickNode, GetBlock
+    
+    **Best for**: Production trading and high-frequency strategies
+  </Tab>
+</Tabs>
+
+## Configuration Example
+
+Example configuration for a CLOB DEX spot connector:
+
+```yaml
+connector: hyperliquid
+market: ETH-USDC
+order_amount: 0.1
+order_refresh_time: 60
+gas_price_multiplier: 1.2  # Adjust for faster confirmation
+```
+
+## Network Requirements
+
+Each CLOB DEX operates on specific blockchain networks:
+
+| Exchange | Network | Native Token | Avg Gas Cost |
+|----------|---------|--------------|-------------|
+| Derive | Lyra Chain | ETH | ~$0.01 |
+| Hyperliquid | Hyperliquid L1 | HYPE | $0 (makers) |
+| XRP Ledger | XRP Ledger | XRP | ~$0.0001 |
+| Dexalot | Dexalot Subnet | ALOT | $0 |
+| Injective | Injective | INJ | $0 |
+| Vertex | Arbitrum One | ETH | ~$0.10 |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CLOB DEX Perpetual" icon="chart-candlestick" href="/connectors/clob-dex-perpetual">
+    Explore decentralized perpetual connectors
+  </Card>
+  <Card title="CLOB CEX Spot" icon="building-columns" href="/connectors/clob-cex-spot">
+    Compare with centralized exchanges
+  </Card>
+  <Card title="Wallet Setup" icon="wallet" href="/setup/wallet">
+    Configure wallets for DEX trading
+  </Card>
+  <Card title="Getting Started" icon="rocket" href="/installation">
+    Install Hummingbot
+  </Card>
+</CardGroup>

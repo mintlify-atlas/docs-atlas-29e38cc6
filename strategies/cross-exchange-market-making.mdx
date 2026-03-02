@@ -1,0 +1,338 @@
+---
+title: Cross Exchange Market Making
+description: Arbitrage strategy that makes markets on one exchange while hedging on another
+---
+
+## Overview
+
+Cross Exchange Market Making (XEMM) allows you to make markets on one exchange (maker) while hedging filled orders on another exchange (taker). This strategy profits from price differences between exchanges while maintaining market-neutral exposure.
+
+## How It Works
+
+1. **Monitor Price Difference**: Continuously calculates profitability between maker and taker exchanges
+2. **Place Maker Orders**: Places limit orders on the maker exchange when profitability threshold is met
+3. **Hedge on Taker**: When maker order fills, immediately hedges with market order on taker exchange
+4. **Capture Spread**: Profits from the price difference minus fees
+
+```python
+# Profitability calculation from source
+profitability = (taker_price - maker_price) / maker_price - fees - slippage
+if profitability >= min_profitability:
+    place_maker_order()
+```
+
+<Info>
+Unlike pure arbitrage, XEMM places orders on one side and waits for fills, acting as a market maker.
+</Info>
+
+## When to Use
+
+<CardGroup cols={2}>
+  <Card title="Ideal Conditions" icon="check">
+    - Consistent price spreads between exchanges
+    - Maker exchange offers fee rebates
+    - Taker exchange has deep liquidity
+    - Stable trading pairs (major assets)
+  </Card>
+  
+  <Card title="Avoid When" icon="xmark">
+    - Price spreads are unstable
+    - High withdrawal fees between exchanges
+    - Low liquidity on taker exchange
+    - Gateway/DEX with high gas costs as taker
+  </Card>
+</CardGroup>
+
+## Core Configuration Parameters
+
+### Exchange Setup
+
+<ParamField path="maker_market_trading_pair" type="string" required>
+  Trading pair on maker exchange in BASE-QUOTE format
+  
+  **Example**: `ETH-USDT`
+</ParamField>
+
+<ParamField path="taker_market" type="string" required>
+  The taker exchange connector name
+  
+  **Example**: `binance`, `uniswap_ethereum`
+</ParamField>
+
+### Profitability
+
+<ParamField path="min_profitability" type="decimal" required>
+  Minimum profit percentage required to place orders. Enter `1` for 1%.
+  
+  **Example**: `0.5` requires 0.5% profit after all costs
+  
+  **Range**: -100% to 100%
+</ParamField>
+
+<ParamField path="order_amount" type="decimal" required>
+  Order size in base asset
+  
+  **Example**: `0.1` for 0.1 ETH per order
+</ParamField>
+
+### Order Behavior
+
+<ParamField path="adjust_order_enabled" type="bool" default="true">
+  Adjust maker order price to be one tick above top bid or below top ask
+  
+  This ensures your orders are at the top of the order book.
+</ParamField>
+
+<ParamField path="order_refresh_mode" type="union" required>
+  How to refresh orders on the maker exchange
+  
+  **Options**:
+  - `active_order_refresh`: Cancel and replace orders continuously
+  - `passive_order_refresh`: Let orders expire naturally
+</ParamField>
+
+#### Passive Order Refresh Parameters
+
+<ParamField path="cancel_order_threshold" type="decimal" default="5.0">
+  Profitability threshold to cancel orders in passive mode. Enter `1` for 1%.
+  
+  **Example**: `2.0` cancels orders when profitability drops below 2%
+</ParamField>
+
+<ParamField path="limit_order_min_expiration" type="decimal" default="130.0">
+  Minimum seconds before orders expire in passive mode
+</ParamField>
+
+### Order Sizing
+
+<ParamField path="order_size_taker_volume_factor" type="decimal" default="25.0">
+  Percentage of taker exchange volume to use for order sizing. Enter `1` for 1%.
+  
+  **Range**: 0% to 100%
+</ParamField>
+
+<ParamField path="order_size_taker_balance_factor" type="decimal" default="99.5">
+  Percentage of taker balance available for hedging. Enter `1` for 1%.
+  
+  **Range**: 0% to 100%
+</ParamField>
+
+<ParamField path="order_size_portfolio_ratio_limit" type="decimal" default="16.67">
+  Maximum order size as percentage of total portfolio. Enter `50` for 50%.
+  
+  **Range**: 0% to 100%
+</ParamField>
+
+### Conversion Rates
+
+<ParamField path="conversion_rate_mode" type="union" required>
+  Method to convert between different assets on maker and taker exchanges
+  
+  **Options**:
+  - `rate_oracle_conversion_rate`: Use Hummingbot's rate oracle (recommended)
+  - `fixed_conversion_rate`: Specify manual conversion rates
+</ParamField>
+
+#### Fixed Conversion Rate Parameters
+
+<ParamField path="taker_to_maker_base_conversion_rate" type="decimal" default="1.0">
+  Conversion rate for base assets (when using fixed mode)
+  
+  **Example**: `1.25` if 1 DAI = 1.25 USDT
+</ParamField>
+
+<ParamField path="taker_to_maker_quote_conversion_rate" type="decimal" default="1.0">
+  Conversion rate for quote assets (when using fixed mode)
+</ParamField>
+
+### Risk Management
+
+<ParamField path="slippage_buffer" type="decimal" default="5.0">
+  Additional buffer for taker market orders to ensure fills. Enter `1` for 1%.
+  
+  **Example**: `2.0` adds 2% slippage buffer to taker orders
+  
+  **Range**: 0% to 100%
+</ParamField>
+
+<ParamField path="top_depth_tolerance" type="decimal" default="0.0">
+  Minimum volume required at top of order book
+  
+  **Example**: `1.0` requires 1 base asset at best bid/ask
+</ParamField>
+
+<ParamField path="anti_hysteresis_duration" type="float" default="60.0">
+  Minimum seconds between order adjustments
+  
+  Prevents excessive order updates during price fluctuations.
+</ParamField>
+
+## Example Configurations
+
+### Basic CEX to CEX
+
+```yaml
+strategy: cross_exchange_market_making
+maker_market_trading_pair: BTC-USDT
+taker_market: binance
+min_profitability: 0.3
+order_amount: 0.01
+order_refresh_mode:
+  active_order_refresh: {}
+adjust_order_enabled: true
+conversion_rate_mode:
+  rate_oracle_conversion_rate: {}
+slippage_buffer: 1.0
+```
+
+This setup:
+- Makes markets for BTC-USDT
+- Hedges on Binance
+- Requires 0.3% minimum profit
+- Uses rate oracle for conversions
+
+### CEX to AMM (Gateway)
+
+```yaml
+strategy: cross_exchange_market_making
+maker_market_trading_pair: ETH-USDC
+taker_market: uniswap_ethereum
+min_profitability: 2.0
+order_amount: 0.5
+order_refresh_mode:
+  passive_order_refresh:
+    cancel_order_threshold: 1.5
+    limit_order_min_expiration: 180
+adjust_order_enabled: true
+conversion_rate_mode:
+  rate_oracle_conversion_rate: {}
+slippage_buffer: 3.0
+order_size_taker_balance_factor: 90.0
+```
+
+Key adjustments for AMM:
+- Higher `min_profitability` to account for gas costs
+- Larger `slippage_buffer` for AMM slippage
+- Passive order refresh to reduce gas usage
+
+### With Fixed Conversion Rates
+
+```yaml
+strategy: cross_exchange_market_making
+maker_market_trading_pair: USDT-USD
+taker_market: kraken
+min_profitability: 0.1
+order_amount: 1000
+order_refresh_mode:
+  active_order_refresh: {}
+conversion_rate_mode:
+  fixed_conversion_rate:
+    taker_to_maker_base_conversion_rate: 1.0001
+    taker_to_maker_quote_conversion_rate: 1.0
+slippage_buffer: 0.5
+```
+
+Useful for stablecoin pairs where rate oracle may be unreliable.
+
+## Advanced Configuration
+
+### Order Refresh Modes
+
+<Tabs>
+  <Tab title="Active Refresh">
+    ```yaml
+    order_refresh_mode:
+      active_order_refresh: {}
+    ```
+    
+    - Continuously cancels and replaces orders
+    - Best for volatile markets
+    - Higher API usage
+    - Recommended for CEX-to-CEX
+  </Tab>
+  
+  <Tab title="Passive Refresh">
+    ```yaml
+    order_refresh_mode:
+      passive_order_refresh:
+        cancel_order_threshold: 2.0
+        limit_order_min_expiration: 130
+    ```
+    
+    - Orders expire naturally
+    - Cancels only when profitability threshold is breached
+    - Lower API usage and gas costs
+    - Recommended for CEX-to-DEX
+  </Tab>
+</Tabs>
+
+## Profitability Calculation
+
+The strategy calculates profitability including all costs:
+
+```python
+# Simplified from source code
+hedge_price = taker_best_price * (1 + slippage_buffer)
+maker_price = calculated_maker_price
+fees = maker_fee + taker_fee
+conversion_cost = base_conversion_rate + quote_conversion_rate
+
+profitability_pct = (
+    (hedge_price - maker_price) / maker_price 
+    - fees 
+    - conversion_cost
+) * 100
+
+can_place_order = profitability_pct >= min_profitability
+```
+
+## Tips for Success
+
+<AccordionGroup>
+  <Accordion title="Monitor Both Exchanges">
+    Ensure sufficient balances on both maker and taker exchanges. The bot needs quote asset on maker and base asset on taker (or vice versa for sell orders).
+  </Accordion>
+  
+  <Accordion title="Account for All Costs">
+    Include in your `min_profitability`:
+    - Maker and taker exchange fees
+    - Withdrawal fees (if rebalancing)
+    - Gas costs (for DEX takers)
+    - Spread costs on taker
+  </Accordion>
+  
+  <Accordion title="Test with Small Amounts">
+    Start with minimum order sizes to verify the strategy works as expected before scaling up.
+  </Accordion>
+  
+  <Accordion title="Use Rate Oracle">
+    For most scenarios, `rate_oracle_conversion_rate` is more reliable than fixed rates, especially for volatile pairs.
+  </Accordion>
+</AccordionGroup>
+
+## Risk Management
+
+<Warning>
+**Key Risks**:
+- **Execution Risk**: Taker order fails after maker fills
+- **Price Risk**: Market moves between maker fill and taker hedge
+- **Balance Risk**: Insufficient taker balance for hedging
+- **Gas Risk**: High gas costs eat into profits (DEX takers)
+</Warning>
+
+**Mitigation**:
+1. Set conservative `min_profitability` (>= 0.5% for CEX, >= 2% for DEX)
+2. Use adequate `slippage_buffer` (2-3% for AMMs)
+3. Monitor and rebalance exchange balances regularly
+4. Use `order_size_taker_balance_factor` to reserve capital
+
+## Source Code Reference
+
+Configuration: `/source/hummingbot/strategy/cross_exchange_market_making/cross_exchange_market_making_config_map_pydantic.py:198`
+
+Strategy Implementation: `/source/hummingbot/strategy/cross_exchange_market_making/cross_exchange_market_making.py`
+
+## Related Strategies
+
+- [AMM Arbitrage](/strategies/amm-arbitrage): Direct arbitrage without market making
+- [Pure Market Making](/strategies/pure-market-making): Single exchange market making

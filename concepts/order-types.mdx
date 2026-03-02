@@ -1,0 +1,301 @@
+---
+title: Order Types
+description: Understanding different order types in Hummingbot
+---
+
+## Overview
+
+Hummingbot supports multiple order types for executing trades across different exchange types. The order type determines how your order is placed, matched, and executed.
+
+## Core Order Types
+
+Order types are defined in `hummingbot/core/data_type/common.py`:
+
+```python
+class OrderType(Enum):
+    MARKET = 1
+    LIMIT = 2
+    LIMIT_MAKER = 3
+    AMM_SWAP = 4
+    AMM_ADD = 5      # Add liquidity to AMM/CLMM pool
+    AMM_REMOVE = 6   # Remove liquidity from AMM/CLMM pool
+    
+    def is_limit_type(self):
+        return self in (OrderType.LIMIT, OrderType.LIMIT_MAKER)
+```
+
+Source: `hummingbot/core/data_type/common.py:8-18`.
+
+### Market Orders
+
+<Card title="MARKET" icon="zap">
+  Market orders execute immediately at the best available price.
+  
+  **Characteristics:**
+  - Guaranteed execution (if liquidity exists)
+  - Price is not guaranteed
+  - Takes liquidity from the order book (you're a "taker")
+  - Pays taker fees
+  
+  **Use When:**
+  - You need immediate execution
+  - Price certainty is less important than fill certainty
+  - You're closing a position quickly
+  
+  **Code:**
+  ```python
+  from hummingbot.core.data_type.common import OrderType, TradeType
+  
+  # Place a market buy order
+  order_id = self.buy(
+      connector_name="binance",
+      trading_pair="BTC-USDT",
+      amount=Decimal("0.1"),
+      order_type=OrderType.MARKET
+  )
+  ```
+</Card>
+
+### Limit Orders
+
+<Card title="LIMIT" icon="bullseye">
+  Limit orders execute at a specified price or better.
+  
+  **Characteristics:**
+  - Price is guaranteed (or better)
+  - Execution is not guaranteed
+  - Can be maker or taker depending on whether you cross the spread
+  - Maker orders earn rebates, taker orders pay fees
+  
+  **Use When:**
+  - You want price control
+  - You're providing liquidity (market making)
+  - You can wait for execution
+  
+  **Code:**
+  ```python
+  # Place a limit sell order at $50,000
+  order_id = self.sell(
+      connector_name="binance",
+      trading_pair="BTC-USDT",
+      amount=Decimal("0.1"),
+      order_type=OrderType.LIMIT,
+      price=Decimal("50000")
+  )
+  ```
+</Card>
+
+### Limit Maker Orders
+
+<Card title="LIMIT_MAKER" icon="hand-holding-dollar">
+  Limit maker orders are limit orders that will only execute as maker orders.
+  
+  **Characteristics:**
+  - Guaranteed to pay maker fees (or earn rebates)
+  - Order is rejected if it would immediately match (become a taker)
+  - Ensures you're always providing liquidity
+  - Also called "post-only" orders
+  
+  **Use When:**
+  - You're market making and need maker fee rates
+  - You want to ensure you're providing liquidity
+  - Your strategy depends on maker rebates
+  
+  **Code:**
+  ```python
+  # Place a limit maker order (post-only)
+  order_id = self.buy(
+      connector_name="binance",
+      trading_pair="BTC-USDT",
+      amount=Decimal("0.1"),
+      order_type=OrderType.LIMIT_MAKER,
+      price=Decimal("49000")
+  )
+  ```
+  
+  <Note>
+  Not all exchanges support `LIMIT_MAKER`. Check `TradingRule.supports_limit_orders` before using.
+  </Note>
+</Card>
+
+## AMM-Specific Order Types
+
+AMM DEX connectors use specialized order types for liquidity operations:
+
+### Swap Orders
+
+<Card title="AMM_SWAP" icon="arrow-right-arrow-left">
+  Swaps execute token exchanges on AMM pools.
+  
+  **Characteristics:**
+  - Executes at current pool price (plus slippage)
+  - Price is determined by pool ratio (x*y=k)
+  - Requires gas fees
+  - Subject to slippage and MEV
+  
+  **Use When:**
+  - Trading on AMM DEXs (Uniswap, PancakeSwap, etc.)
+  - You need to swap tokens without an order book
+  
+  **Example:**
+  ```python
+  # Swap on Uniswap via Gateway
+  order_id = self.buy(
+      connector_name="uniswap_ethereum_mainnet",
+      trading_pair="WETH-USDC",
+      amount=Decimal("1.0"),
+      order_type=OrderType.AMM_SWAP
+  )
+  ```
+</Card>
+
+### Liquidity Management Orders
+
+<CardGroup cols={2}>
+  <Card title="AMM_ADD" icon="plus">
+    Add liquidity to an AMM or CLMM pool.
+    
+    **Use When:**
+    - Providing liquidity to earn trading fees
+    - Implementing LP strategies
+    - Adding to Uniswap V3 positions
+    
+    **Example:**
+    ```python
+    order_type=OrderType.AMM_ADD
+    ```
+  </Card>
+  
+  <Card title="AMM_REMOVE" icon="minus">
+    Remove liquidity from an AMM or CLMM pool.
+    
+    **Use When:**
+    - Withdrawing liquidity from pools
+    - Rebalancing LP positions
+    - Closing LP positions
+    
+    **Example:**
+    ```python
+    order_type=OrderType.AMM_REMOVE
+    ```
+  </Card>
+</CardGroup>
+
+Source: `hummingbot/core/data_type/common.py:13-14`.
+
+## Trading Rule Constraints
+
+Each exchange enforces trading rules that constrain order placement. These are stored in the `TradingRule` class:
+
+```python
+class TradingRule:
+    trading_pair: str
+    min_order_size: Decimal              # Minimum order size (base asset)
+    max_order_size: Decimal              # Maximum order size (base asset)
+    min_price_increment: Decimal         # Minimum price tick size
+    min_base_amount_increment: Decimal   # Minimum amount increment
+    min_quote_amount_increment: Decimal  # Minimum quote increment
+    min_notional_size: Decimal           # Minimum order value
+    min_order_value: Decimal             # Minimum order value (quote asset)
+    supports_limit_orders: bool          # Exchange supports limit orders
+    supports_market_orders: bool         # Exchange supports market orders
+```
+
+Source: `hummingbot/connector/trading_rule.pyx:11-40`.
+
+### Example: Checking Trading Rules
+
+```python
+from decimal import Decimal
+
+# Get trading rule for a pair
+trading_rule = self.connectors["binance"].trading_rules["BTC-USDT"]
+
+# Validate order parameters
+if amount < trading_rule.min_order_size:
+    self.logger().warning(f"Order too small: {amount} < {trading_rule.min_order_size}")
+
+if not trading_rule.supports_limit_orders:
+    self.logger().warning("Exchange doesn't support limit orders")
+
+# Quantize price to tick size
+price = (price // trading_rule.min_price_increment) * trading_rule.min_price_increment
+```
+
+## Order Lifecycle
+
+Orders go through several states during their lifecycle:
+
+<Steps>
+  <Step title="Created">
+    Order is generated by strategy with a `client_order_id`.
+  </Step>
+  
+  <Step title="Submitted">
+    Order is sent to exchange API.
+  </Step>
+  
+  <Step title="Acknowledged">
+    Exchange confirms receipt and assigns an `exchange_order_id`.
+  </Step>
+  
+  <Step title="Open">
+    Order is active on the order book (limit orders only).
+  </Step>
+  
+  <Step title="Partially Filled">
+    Some of the order quantity has executed.
+  </Step>
+  
+  <Step title="Filled">
+    Entire order quantity has executed.
+  </Step>
+  
+  <Step title="Cancelled / Expired">
+    Order was cancelled by user or expired (time-in-force).
+  </Step>
+</Steps>
+
+### Order Events
+
+Strategies can listen to order events to react to state changes:
+
+```python
+from hummingbot.core.event.events import (
+    OrderFilledEvent,
+    BuyOrderCompletedEvent,
+    OrderCancelledEvent
+)
+
+class MyStrategy(StrategyPyBase):
+    def did_fill_order(self, event: OrderFilledEvent):
+        self.logger().info(
+            f"Order {event.order_id} filled: "
+            f"{event.amount} @ {event.price}"
+        )
+    
+    def did_complete_buy_order(self, event: BuyOrderCompletedEvent):
+        self.logger().info(f"Buy order completed: {event.order_id}")
+    
+    def did_cancel_order(self, event: OrderCancelledEvent):
+        self.logger().info(f"Order cancelled: {event.order_id}")
+```
+
+## Trade Types
+
+Orders are directional (buy or sell):
+
+```python
+class TradeType(Enum):
+    BUY = 1
+    SELL = 2
+    RANGE = 3  # For LP range orders
+```
+
+Source: `hummingbot/core/data_type/common.py:62-65`.
+
+## Related Concepts
+
+- [Exchange Types](/concepts/exchange-types) - Different exchanges support different order types
+- [Connectors](/concepts/connectors) - How orders are submitted to exchanges
+- [Market Data](/concepts/market-data) - Order book data for price discovery

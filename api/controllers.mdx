@@ -1,0 +1,534 @@
+---
+title: Controllers
+description: Controller base classes for building trading strategies in V2 framework
+---
+
+## Overview
+
+Controllers are the brain of V2 strategies, responsible for analyzing market data and determining what actions executors should take. The V2 framework provides three controller base classes:
+
+- **ControllerBase** - Generic controller with advanced filtering capabilities
+- **MarketMakingControllerBase** - Specialized for market making strategies
+- **DirectionalTradingControllerBase** - Specialized for directional trading strategies
+
+---
+
+## ControllerBase
+
+The base controller class that provides comprehensive executor management and filtering capabilities.
+
+### Class Definition
+
+```python
+class ControllerBase(RunnableBase):
+    def __init__(
+        self,
+        config: ControllerConfigBase,
+        market_data_provider: MarketDataProvider,
+        actions_queue: asyncio.Queue,
+        update_interval: float = 1.0
+    )
+```
+
+**Location:** `hummingbot/strategy_v2/controllers/controller_base.py:127`
+
+### Parameters
+
+<ParamField path="config" type="ControllerConfigBase" required>
+  The configuration object for the controller
+</ParamField>
+
+<ParamField path="market_data_provider" type="MarketDataProvider" required>
+  Provider for accessing market data and prices
+</ParamField>
+
+<ParamField path="actions_queue" type="asyncio.Queue" required>
+  Queue for sending executor actions to the orchestrator
+</ParamField>
+
+<ParamField path="update_interval" type="float" default="1.0">
+  Interval in seconds for the control loop
+</ParamField>
+
+### Key Properties
+
+<ResponseField name="executors_info" type="List[ExecutorInfo]">
+  List of all executor information objects managed by this controller
+</ResponseField>
+
+<ResponseField name="positions_held" type="List[PositionSummary]">
+  List of positions currently held by executors
+</ResponseField>
+
+<ResponseField name="performance_report" type="Optional[PerformanceReport]">
+  Performance metrics for the controller
+</ResponseField>
+
+### Core Methods
+
+#### determine_executor_actions()
+
+```python
+def determine_executor_actions(self) -> List[ExecutorAction]
+```
+
+Determines what actions executors should take based on current market conditions. Must be overridden in subclasses.
+
+**Returns:** List of executor actions (CreateExecutorAction or StopExecutorAction)
+
+**Location:** `controller_base.py:456`
+
+---
+
+#### update_processed_data()
+
+```python
+async def update_processed_data(self)
+```
+
+Updates market data used by the controller for decision making. Must be overridden in subclasses.
+
+**Location:** `controller_base.py:448`
+
+---
+
+#### get_candles_config()
+
+```python
+def get_candles_config(self) -> List[CandlesConfig]
+```
+
+Returns candles configuration needed by the controller. Override to specify required candle data.
+
+**Returns:** List of CandlesConfig objects
+
+**Location:** `controller_base.py:228`
+
+---
+
+### Executor Filtering
+
+The controller provides powerful filtering capabilities through the `ExecutorFilter` system.
+
+#### filter_executors()
+
+```python
+def filter_executors(
+    self,
+    executors: List[ExecutorInfo] = None,
+    executor_filter: ExecutorFilter = None,
+    filter_func: Callable[[ExecutorInfo], bool] = None
+) -> List[ExecutorInfo]
+```
+
+Filters executors using ExecutorFilter criteria or a custom filter function.
+
+<ParamField path="executors" type="List[ExecutorInfo]" optional>
+  Optional list of executors to filter. If None, uses self.executors_info
+</ParamField>
+
+<ParamField path="executor_filter" type="ExecutorFilter" optional>
+  ExecutorFilter instance with filtering criteria
+</ParamField>
+
+<ParamField path="filter_func" type="Callable" optional>
+  Optional custom filter function for backward compatibility
+</ParamField>
+
+**Location:** `controller_base.py:272`
+
+---
+
+#### get_active_executors()
+
+```python
+def get_active_executors(
+    self,
+    connector_names: Optional[List[str]] = None,
+    trading_pairs: Optional[List[str]] = None,
+    executor_types: Optional[List[str]] = None
+) -> List[ExecutorInfo]
+```
+
+Returns all active executors with optional filtering.
+
+**Location:** `controller_base.py:372`
+
+---
+
+#### get_completed_executors()
+
+```python
+def get_completed_executors(
+    self,
+    connector_names: Optional[List[str]] = None,
+    trading_pairs: Optional[List[str]] = None,
+    executor_types: Optional[List[str]] = None
+) -> List[ExecutorInfo]
+```
+
+Returns all completed (terminated) executors with optional filtering.
+
+**Location:** `controller_base.py:392`
+
+---
+
+### Trading API Methods
+
+#### buy()
+
+```python
+def buy(
+    self,
+    connector_name: str,
+    trading_pair: str,
+    amount: Decimal,
+    price: Optional[Decimal] = None,
+    execution_strategy: ExecutionStrategy = ExecutionStrategy.MARKET,
+    chaser_config: Optional[LimitChaserConfig] = None,
+    triple_barrier_config: Optional[TripleBarrierConfig] = None,
+    leverage: int = 1,
+    keep_position: bool = True
+) -> str
+```
+
+Creates a buy order using the unified PositionExecutor.
+
+**Returns:** Executor ID for tracking the order
+
+**Location:** `controller_base.py:485`
+
+---
+
+#### sell()
+
+```python
+def sell(
+    self,
+    connector_name: str,
+    trading_pair: str,
+    amount: Decimal,
+    price: Optional[Decimal] = None,
+    execution_strategy: ExecutionStrategy = ExecutionStrategy.MARKET,
+    chaser_config: Optional[LimitChaserConfig] = None,
+    triple_barrier_config: Optional[TripleBarrierConfig] = None,
+    leverage: int = 1,
+    keep_position: bool = True
+) -> str
+```
+
+Creates a sell order using the unified PositionExecutor.
+
+**Returns:** Executor ID for tracking the order
+
+**Location:** `controller_base.py:522`
+
+---
+
+#### cancel()
+
+```python
+def cancel(self, executor_id: str) -> bool
+```
+
+Cancels an active executor (order) by its ID.
+
+**Returns:** True if cancellation request was sent, False otherwise
+
+**Location:** `controller_base.py:617`
+
+---
+
+#### cancel_all()
+
+```python
+def cancel_all(
+    self,
+    connector_name: Optional[str] = None,
+    trading_pair: Optional[str] = None,
+    executor_filter: Optional[ExecutorFilter] = None
+) -> List[str]
+```
+
+Cancels all active orders with optional filtering.
+
+**Returns:** List of executor IDs that were cancelled
+
+**Location:** `controller_base.py:643`
+
+---
+
+#### open_orders()
+
+```python
+def open_orders(
+    self,
+    connector_name: Optional[str] = None,
+    trading_pair: Optional[str] = None,
+    executor_filter: Optional[ExecutorFilter] = None
+) -> List[Dict]
+```
+
+Gets all open orders from active executors.
+
+**Returns:** List of open order dictionaries
+
+**Location:** `controller_base.py:697`
+
+---
+
+#### open_positions()
+
+```python
+def open_positions(
+    self,
+    connector_name: Optional[str] = None,
+    trading_pair: Optional[str] = None,
+    executor_filter: Optional[ExecutorFilter] = None
+) -> List[Dict]
+```
+
+Gets all held positions from completed executors.
+
+**Returns:** List of position dictionaries
+
+**Location:** `controller_base.py:764`
+
+---
+
+#### get_current_price()
+
+```python
+def get_current_price(
+    self,
+    connector_name: str,
+    trading_pair: str,
+    price_type: PriceType = PriceType.MidPrice
+) -> Decimal
+```
+
+Gets current market price for a trading pair.
+
+**Location:** `controller_base.py:839`
+
+---
+
+## MarketMakingControllerBase
+
+Specialized controller for market making strategies that places orders on both bid and ask sides.
+
+### Class Definition
+
+```python
+class MarketMakingControllerBase(ControllerBase):
+    def __init__(self, config: MarketMakingControllerConfigBase, *args, **kwargs)
+```
+
+**Location:** `hummingbot/strategy_v2/controllers/market_making_controller_base.py:212`
+
+### Configuration Fields
+
+<ParamField path="connector_name" type="str" default="binance_perpetual">
+  Exchange connector name (e.g., binance_perpetual)
+</ParamField>
+
+<ParamField path="trading_pair" type="str" default="WLD-USDT">
+  Trading pair to trade on
+</ParamField>
+
+<ParamField path="buy_spreads" type="List[float]" default="[0.01, 0.02]">
+  Comma-separated list of buy spreads
+</ParamField>
+
+<ParamField path="sell_spreads" type="List[float]" default="[0.01, 0.02]">
+  Comma-separated list of sell spreads
+</ParamField>
+
+<ParamField path="executor_refresh_time" type="int" default="300">
+  Refresh time in seconds for executors (5 minutes)
+</ParamField>
+
+<ParamField path="leverage" type="int" default="20">
+  Leverage for perpetual trading (set to 1 for spot)
+</ParamField>
+
+<ParamField path="stop_loss" type="Decimal" default="0.03">
+  Stop loss as decimal (e.g., 0.03 for 3%)
+</ParamField>
+
+<ParamField path="take_profit" type="Decimal" default="0.02">
+  Take profit as decimal (e.g., 0.02 for 2%)
+</ParamField>
+
+### Key Methods
+
+#### create_actions_proposal()
+
+```python
+def create_actions_proposal(self) -> List[ExecutorAction]
+```
+
+Creates actions proposal based on current controller state, including position rebalancing and market making levels.
+
+**Location:** `market_making_controller_base.py:232`
+
+---
+
+#### get_price_and_amount()
+
+```python
+def get_price_and_amount(self, level_id: str) -> Tuple[Decimal, Decimal]
+```
+
+Calculates the price and amount for a given market making level.
+
+**Returns:** Tuple of (price, amount)
+
+**Location:** `market_making_controller_base.py:304`
+
+---
+
+## DirectionalTradingControllerBase
+
+Specialized controller for directional trading strategies based on signals.
+
+### Class Definition
+
+```python
+class DirectionalTradingControllerBase(ControllerBase):
+    def __init__(self, config: DirectionalTradingControllerConfigBase, *args, **kwargs)
+```
+
+**Location:** `hummingbot/strategy_v2/controllers/directional_trading_controller_base.py:141`
+
+### Configuration Fields
+
+<ParamField path="connector_name" type="str" default="binance_perpetual">
+  Exchange connector name
+</ParamField>
+
+<ParamField path="trading_pair" type="str" default="WLD-USDT">
+  Trading pair to trade on
+</ParamField>
+
+<ParamField path="max_executors_per_side" type="int" default="2">
+  Maximum number of executors per side (buy/sell)
+</ParamField>
+
+<ParamField path="cooldown_time" type="int" default="300">
+  Cooldown time in seconds after executing a signal (5 minutes)
+</ParamField>
+
+<ParamField path="leverage" type="int" default="20">
+  Leverage for perpetual trading
+</ParamField>
+
+### Key Methods
+
+#### can_create_executor()
+
+```python
+def can_create_executor(self, signal: int) -> bool
+```
+
+Checks if an executor can be created based on the signal, quantity of active executors, and cooldown time.
+
+**Location:** `directional_trading_controller_base.py:185`
+
+---
+
+#### get_executor_config()
+
+```python
+def get_executor_config(
+    self,
+    trade_type: TradeType,
+    price: Decimal,
+    amount: Decimal
+) -> PositionExecutorConfig
+```
+
+Gets the executor configuration based on trade type, price, and amount.
+
+**Location:** `directional_trading_controller_base.py:204`
+
+---
+
+## ExecutorFilter
+
+Powerful filtering system for querying executors.
+
+```python
+@dataclass
+class ExecutorFilter:
+    executor_ids: Optional[List[str]] = None
+    connector_names: Optional[List[str]] = None
+    trading_pairs: Optional[List[str]] = None
+    executor_types: Optional[List[str]] = None
+    statuses: Optional[List[RunnableStatus]] = None
+    sides: Optional[List[TradeType]] = None
+    is_active: Optional[bool] = None
+    is_trading: Optional[bool] = None
+    close_types: Optional[List[CloseType]] = None
+    controller_ids: Optional[List[str]] = None
+    min_pnl_pct: Optional[Decimal] = None
+    max_pnl_pct: Optional[Decimal] = None
+    min_pnl_quote: Optional[Decimal] = None
+    max_pnl_quote: Optional[Decimal] = None
+    min_timestamp: Optional[float] = None
+    max_timestamp: Optional[float] = None
+```
+
+**Location:** `controller_base.py:32`
+
+## Usage Examples
+
+### Basic Controller
+
+```python
+from hummingbot.strategy_v2.controllers.controller_base import ControllerBase, ExecutorFilter
+from decimal import Decimal
+
+class MyController(ControllerBase):
+    async def update_processed_data(self):
+        # Update market data
+        self.processed_data["price"] = self.get_current_price(
+            "binance", "BTC-USDT"
+        )
+    
+    def determine_executor_actions(self):
+        # Get active executors for BTC-USDT
+        active = self.get_active_executors(
+            connector_names=["binance"],
+            trading_pairs=["BTC-USDT"]
+        )
+        
+        # Create buy order if no active executors
+        if len(active) == 0:
+            executor_id = self.buy(
+                connector_name="binance",
+                trading_pair="BTC-USDT",
+                amount=Decimal("0.001")
+            )
+        
+        return []
+```
+
+### Advanced Filtering
+
+```python
+# Get profitable completed executors from last hour
+filter = ExecutorFilter(
+    statuses=[RunnableStatus.TERMINATED],
+    min_pnl_pct=Decimal("0.01"),  # At least 1% profit
+    min_timestamp=time.time() - 3600  # Last hour
+)
+profit_executors = controller.filter_executors(executor_filter=filter)
+
+# Cancel losing positions
+losing_filter = ExecutorFilter(
+    is_active=True,
+    max_pnl_pct=Decimal("-0.02")  # More than 2% loss
+)
+controller.cancel_all(executor_filter=losing_filter)
+```

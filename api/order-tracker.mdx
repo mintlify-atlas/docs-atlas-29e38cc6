@@ -1,0 +1,545 @@
+---
+title: OrderTracker
+description: Tracks and manages limit and market orders in strategies
+---
+
+`OrderTracker` is a Cython class that manages order tracking for Hummingbot strategies. It maintains state for both active orders and shadow orders (recently completed orders kept for reconciliation).
+
+## Class Definition
+
+```python
+class OrderTracker(TimeIterator):
+    SHADOW_MAKER_ORDER_KEEP_ALIVE_DURATION = 60.0 * 3  # 3 minutes
+    CANCEL_EXPIRY_DURATION = 60.0  # 1 minute
+    
+    def __init__(self):
+        super().__init__()
+        self._tracked_limit_orders = {}  # Active limit orders
+        self._tracked_market_orders = {}  # Active market orders
+        self._order_id_to_market_pair = {}  # Order ID mapping
+        self._shadow_tracked_limit_orders = {}  # Shadow limit orders
+        self._in_flight_cancels = OrderedDict()  # Pending cancellations
+```
+
+## Core Properties
+
+<ParamField path="active_limit_orders" type="List[Tuple[ConnectorBase, LimitOrder]]">
+  Returns a list of all active limit orders (excluding those with in-flight cancels).
+</ParamField>
+
+<ParamField path="shadow_limit_orders" type="List[Tuple[ConnectorBase, LimitOrder]]">
+  Returns a list of shadow limit orders kept for reconciliation.
+</ParamField>
+
+<ParamField path="active_bids" type="List[Tuple[ConnectorBase, LimitOrder]]">
+  Returns all active buy limit orders.
+</ParamField>
+
+<ParamField path="active_asks" type="List[Tuple[ConnectorBase, LimitOrder]]">
+  Returns all active sell limit orders.
+</ParamField>
+
+<ParamField path="market_pair_to_active_orders" type="Dict[MarketTradingPairTuple, List[LimitOrder]]">
+  Returns a dictionary mapping market pairs to their active limit orders.
+</ParamField>
+
+<ParamField path="tracked_limit_orders" type="List[Tuple[ConnectorBase, LimitOrder]]">
+  Returns all tracked limit orders (active and shadow).
+</ParamField>
+
+<ParamField path="tracked_market_orders" type="List[Tuple[ConnectorBase, MarketOrder]]">
+  Returns all tracked market orders.
+</ParamField>
+
+<ParamField path="in_flight_cancels" type="Dict[str, float]">
+  Returns a dictionary of order IDs with pending cancel requests and their timestamps.
+</ParamField>
+
+<ParamField path="in_flight_pending_created" type="Set[str]">
+  Returns a set of order IDs that are pending creation confirmation.
+</ParamField>
+
+## DataFrames
+
+### tracked_limit_orders_data_frame
+
+```python
+@property
+def tracked_limit_orders_data_frame(self) -> pd.DataFrame:
+    """
+    Returns a DataFrame with columns: market, trading_pair, order_id, quantity, timestamp
+    """
+```
+
+<ResponseField name="return" type="pd.DataFrame">
+  DataFrame containing all tracked limit orders with their details.
+</ResponseField>
+
+### tracked_market_orders_data_frame
+
+```python
+@property
+def tracked_market_orders_data_frame(self) -> pd.DataFrame:
+    """
+    Returns a DataFrame with columns: market, trading_pair, order_id, quantity, timestamp
+    """
+```
+
+<ResponseField name="return" type="pd.DataFrame">
+  DataFrame containing all tracked market orders with their details.
+</ResponseField>
+
+## Order Tracking Methods
+
+### start_tracking_limit_order
+
+```python
+def start_tracking_limit_order(
+    self,
+    market_pair: MarketTradingPairTuple,
+    order_id: str,
+    is_buy: bool,
+    price: Decimal,
+    quantity: Decimal
+):
+    """
+    Starts tracking a limit order. Creates both active and shadow tracking entries.
+    """
+```
+
+<ParamField path="market_pair" type="MarketTradingPairTuple">
+  The market and trading pair for this order.
+</ParamField>
+
+<ParamField path="order_id" type="str">
+  The unique order identifier (client_order_id).
+</ParamField>
+
+<ParamField path="is_buy" type="bool">
+  True for buy orders, False for sell orders.
+</ParamField>
+
+<ParamField path="price" type="Decimal">
+  The limit order price.
+</ParamField>
+
+<ParamField path="quantity" type="Decimal">
+  The order quantity in base asset.
+</ParamField>
+
+### stop_tracking_limit_order
+
+```python
+def stop_tracking_limit_order(
+    self,
+    market_pair: MarketTradingPairTuple,
+    order_id: str
+):
+    """
+    Stops tracking an active limit order. Moves it to shadow tracking for 
+    SHADOW_MAKER_ORDER_KEEP_ALIVE_DURATION (3 minutes).
+    """
+```
+
+<ParamField path="market_pair" type="MarketTradingPairTuple">
+  The market and trading pair for this order.
+</ParamField>
+
+<ParamField path="order_id" type="str">
+  The order identifier to stop tracking.
+</ParamField>
+
+### start_tracking_market_order
+
+```python
+def start_tracking_market_order(
+    self,
+    market_pair: MarketTradingPairTuple,
+    order_id: str,
+    is_buy: bool,
+    quantity: Decimal
+):
+    """
+    Starts tracking a market order.
+    """
+```
+
+<ParamField path="market_pair" type="MarketTradingPairTuple">
+  The market and trading pair for this order.
+</ParamField>
+
+<ParamField path="order_id" type="str">
+  The unique order identifier.
+</ParamField>
+
+<ParamField path="is_buy" type="bool">
+  True for buy orders, False for sell orders.
+</ParamField>
+
+<ParamField path="quantity" type="Decimal">
+  The order quantity in base asset.
+</ParamField>
+
+### stop_tracking_market_order
+
+```python
+def stop_tracking_market_order(
+    self,
+    market_pair: MarketTradingPairTuple,
+    order_id: str
+):
+    """
+    Stops tracking a market order.
+    """
+```
+
+<ParamField path="market_pair" type="MarketTradingPairTuple">
+  The market and trading pair for this order.
+</ParamField>
+
+<ParamField path="order_id" type="str">
+  The order identifier to stop tracking.
+</ParamField>
+
+## Order Retrieval
+
+### get_limit_order
+
+```python
+def get_limit_order(
+    self,
+    market_pair: MarketTradingPairTuple,
+    order_id: str
+) -> LimitOrder:
+    """
+    Retrieves a tracked limit order.
+    """
+```
+
+<ParamField path="market_pair" type="MarketTradingPairTuple">
+  The market and trading pair.
+</ParamField>
+
+<ParamField path="order_id" type="str">
+  The order identifier.
+</ParamField>
+
+<ResponseField name="return" type="LimitOrder">
+  The LimitOrder object if found, None otherwise.
+</ResponseField>
+
+### get_shadow_limit_order
+
+```python
+def get_shadow_limit_order(self, order_id: str) -> LimitOrder:
+    """
+    Retrieves a shadow limit order by order ID.
+    """
+```
+
+<ParamField path="order_id" type="str">
+  The order identifier.
+</ParamField>
+
+<ResponseField name="return" type="LimitOrder">
+  The shadow LimitOrder object if found, None otherwise.
+</ResponseField>
+
+### get_market_order
+
+```python
+def get_market_order(
+    self,
+    market_pair: MarketTradingPairTuple,
+    order_id: str
+) -> MarketOrder:
+    """
+    Retrieves a tracked market order.
+    """
+```
+
+<ParamField path="market_pair" type="MarketTradingPairTuple">
+  The market and trading pair.
+</ParamField>
+
+<ParamField path="order_id" type="str">
+  The order identifier.
+</ParamField>
+
+<ResponseField name="return" type="MarketOrder">
+  The MarketOrder object if found, None otherwise.
+</ResponseField>
+
+### get_market_pair_from_order_id
+
+```python
+def get_market_pair_from_order_id(self, order_id: str) -> MarketTradingPairTuple:
+    """
+    Gets the market trading pair associated with an order ID.
+    """
+```
+
+<ParamField path="order_id" type="str">
+  The order identifier.
+</ParamField>
+
+<ResponseField name="return" type="MarketTradingPairTuple">
+  The MarketTradingPairTuple for this order, or None if not found.
+</ResponseField>
+
+## Cancel Management
+
+### check_and_track_cancel
+
+```python
+def check_and_track_cancel(self, order_id: str) -> bool:
+    """
+    Checks if an order can be cancelled and tracks the cancel request.
+    Returns False if there's already an in-flight cancel or the order is pending creation.
+    """
+```
+
+<ParamField path="order_id" type="str">
+  The order ID to cancel.
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  True if the cancel can proceed, False if there's already a pending cancel or the order is pending creation.
+</ResponseField>
+
+### has_in_flight_cancel
+
+```python
+def has_in_flight_cancel(self, order_id: str) -> bool:
+    """
+    Checks if an order has a pending cancel request.
+    """
+```
+
+<ParamField path="order_id" type="str">
+  The order identifier.
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  True if there's a pending cancel request for this order.
+</ResponseField>
+
+## Shadow Order Management
+
+### check_and_cleanup_shadow_records
+
+```python
+def check_and_cleanup_shadow_records(self):
+    """
+    Removes shadow orders that have exceeded the SHADOW_MAKER_ORDER_KEEP_ALIVE_DURATION.
+    Called automatically on each tick.
+    """
+```
+
+## Pending Creation Tracking
+
+### add_create_order_pending
+
+```python
+def add_create_order_pending(self, order_id: str):
+    """
+    Marks an order as pending creation confirmation.
+    """
+```
+
+<ParamField path="order_id" type="str">
+  The order identifier.
+</ParamField>
+
+### remove_create_order_pending
+
+```python
+def remove_create_order_pending(self, order_id: str):
+    """
+    Removes an order from the pending creation set.
+    """
+```
+
+<ParamField path="order_id" type="str">
+  The order identifier.
+</ParamField>
+
+## Usage Examples
+
+### Basic Order Tracking
+
+```python
+from hummingbot.strategy.order_tracker import OrderTracker
+from decimal import Decimal
+
+# Initialize order tracker
+order_tracker = OrderTracker()
+
+# Track a limit buy order
+order_tracker.start_tracking_limit_order(
+    market_pair=market_trading_pair_tuple,
+    order_id="buy_order_123",
+    is_buy=True,
+    price=Decimal("50000"),
+    quantity=Decimal("0.1")
+)
+
+# Track a market sell order
+order_tracker.start_tracking_market_order(
+    market_pair=market_trading_pair_tuple,
+    order_id="sell_order_456",
+    is_buy=False,
+    quantity=Decimal("0.05")
+)
+
+# Get active limit orders
+active_orders = order_tracker.active_limit_orders
+for market, order in active_orders:
+    print(f"Order: {order.client_order_id}, Price: {order.price}, Qty: {order.quantity}")
+```
+
+### Using in a Strategy
+
+```python
+from hummingbot.strategy.strategy_base import StrategyBase
+
+class MyStrategy(StrategyBase):
+    def __init__(self):
+        super().__init__()
+        # Order tracker is automatically initialized in StrategyBase
+        # as self._sb_order_tracker
+    
+    cdef c_tick(self, double timestamp):
+        StrategyBase.c_tick(self, timestamp)
+        
+        # Place a limit order
+        order_id = self.c_buy_with_specific_market(
+            market_pair,
+            Decimal("0.1"),
+            OrderType.LIMIT,
+            Decimal("50000")
+        )
+        # Order is automatically tracked by StrategyBase
+        
+    cdef c_did_complete_buy_order(self, object order_completed_event):
+        # When order completes, it's automatically removed from active tracking
+        # and moved to shadow tracking
+        order_id = order_completed_event.order_id
+        
+        # You can still access it from shadow orders for 3 minutes
+        shadow_order = self._sb_order_tracker.get_shadow_limit_order(order_id)
+        if shadow_order:
+            self.logger().info(f"Completed order: {shadow_order.client_order_id}")
+```
+
+### Checking Order Status
+
+```python
+# Get all active bids and asks
+bids = order_tracker.active_bids
+asks = order_tracker.active_asks
+
+print(f"Active buy orders: {len(bids)}")
+print(f"Active sell orders: {len(asks)}")
+
+# Get orders for a specific market pair
+market_orders = order_tracker.market_pair_to_active_orders
+for market_pair, orders in market_orders.items():
+    print(f"Market: {market_pair.trading_pair}")
+    for order in orders:
+        print(f"  Order: {order.client_order_id}, Price: {order.price}")
+```
+
+### Cancel Management Example
+
+```python
+def cancel_order_safely(order_tracker: OrderTracker, market_pair, order_id: str):
+    """Safely cancel an order with duplicate prevention."""
+    
+    # Check if cancel is already in flight
+    if order_tracker.has_in_flight_cancel(order_id):
+        print(f"Cancel already pending for {order_id}")
+        return False
+    
+    # Track the cancel request
+    if order_tracker.check_and_track_cancel(order_id):
+        # Proceed with cancel
+        market_pair.market.cancel(market_pair.trading_pair, order_id)
+        return True
+    else:
+        print(f"Cannot cancel {order_id} - already pending or in creation")
+        return False
+```
+
+### DataFrame Export
+
+```python
+import pandas as pd
+
+# Get limit orders as DataFrame
+limit_df = order_tracker.tracked_limit_orders_data_frame
+print(limit_df)
+# Output:
+#    market trading_pair        order_id  quantity           timestamp
+# 0  binance    BTC-USDT  buy_order_123      0.10  2024-03-02 10:30:00
+# 1  binance    ETH-USDT  sell_order_456     1.50  2024-03-02 10:31:00
+
+# Get market orders as DataFrame
+market_df = order_tracker.tracked_market_orders_data_frame
+print(market_df)
+
+# Export to CSV
+limit_df.to_csv("active_orders.csv", index=False)
+```
+
+### Shadow Order Cleanup
+
+```python
+# Shadow orders are automatically cleaned up after 3 minutes
+# This happens automatically on each tick
+
+# Manually trigger cleanup (usually not needed)
+order_tracker.check_and_cleanup_shadow_records()
+
+# Access shadow orders (useful for reconciliation)
+shadow_orders = order_tracker.shadow_limit_orders
+for market, order in shadow_orders:
+    # These are recently completed/cancelled orders
+    # Kept for up to 3 minutes for reconciliation
+    print(f"Shadow order: {order.client_order_id}")
+```
+
+## Integration with StrategyBase
+
+The `OrderTracker` is automatically integrated into `StrategyBase`:
+
+```python
+class StrategyBase(TimeIterator):
+    def __init__(self):
+        super().__init__()
+        self._sb_order_tracker = OrderTracker()  # Automatically created
+    
+    @property
+    def order_tracker(self) -> OrderTracker:
+        return self._sb_order_tracker
+```
+
+Order tracking is handled automatically:
+- When you call `buy_with_specific_market()` or `sell_with_specific_market()`, orders are automatically tracked
+- When orders complete, fail, or are cancelled, they're automatically removed from active tracking
+- Shadow tracking is maintained automatically for reconciliation
+
+## Constants
+
+<ParamField path="SHADOW_MAKER_ORDER_KEEP_ALIVE_DURATION" type="float" default="180.0">
+  Duration (in seconds) to keep shadow orders before cleanup. Default is 3 minutes.
+</ParamField>
+
+<ParamField path="CANCEL_EXPIRY_DURATION" type="float" default="60.0">
+  Duration (in seconds) for cancel requests to expire. Default is 1 minute.
+</ParamField>
+
+## Related Classes
+
+- [StrategyBase](/api/strategy-base) - Uses OrderTracker for order management
+- [ConnectorBase](/api/connector-base) - Executes orders tracked by OrderTracker

@@ -1,0 +1,133 @@
+---
+title: CLI Commands Overview
+description: Introduction to Hummingbot's command-line interface and common usage patterns
+---
+
+## Introduction
+
+Hummingbot's command-line interface (CLI) provides a comprehensive set of commands for managing your trading bot. The CLI allows you to configure strategies, monitor performance, manage exchange connections, and control bot operations.
+
+## Accessing the CLI
+
+When you launch Hummingbot, you'll be greeted with a command prompt:
+
+```
+>>>
+```
+
+From this prompt, you can enter any of the available commands. Type `help all` to see a complete list of commands.
+
+## Common Command Patterns
+
+### Interactive vs Direct Input
+
+Most commands support two input modes:
+
+1. **Interactive Mode**: Enter the command name alone, and Hummingbot will prompt you for required parameters
+2. **Direct Mode**: Provide all parameters in a single command line
+
+<CodeGroup>
+```bash Interactive
+connect
+# Hummingbot will prompt: "Which exchange would you like to connect to?"
+```
+
+```bash Direct
+connect binance
+# Directly specify the exchange
+```
+</CodeGroup>
+
+### Command Options and Arguments
+
+Many commands accept optional flags and arguments to modify their behavior:
+
+```bash
+history --days 7 --verbose
+balance limit binance BTC 0.1
+```
+
+## Essential Commands
+
+<CardGroup cols={2}>
+  <Card title="create" icon="file-plus" href="/cli/create">
+    Create a new strategy configuration
+  </Card>
+  <Card title="start" icon="play" href="/cli/start-stop">
+    Start your trading bot
+  </Card>
+  <Card title="status" icon="chart-line" href="/cli/status">
+    View bot status and performance
+  </Card>
+  <Card title="balance" icon="wallet" href="/cli/balance">
+    Check exchange balances
+  </Card>
+</CardGroup>
+
+## Workflow Example
+
+Here's a typical workflow for setting up and running a bot:
+
+<Steps>
+  <Step title="Connect to Exchange">
+    ```bash
+    connect binance
+    ```
+    Enter your API credentials when prompted.
+  </Step>
+  
+  <Step title="Create Strategy">
+    ```bash
+    create
+    ```
+    Follow the prompts to configure your strategy.
+  </Step>
+  
+  <Step title="Check Status">
+    ```bash
+    status
+    ```
+    Verify all connections and configurations are valid.
+  </Step>
+  
+  <Step title="Start Trading">
+    ```bash
+    start
+    ```
+    Begin executing your strategy.
+  </Step>
+</Steps>
+
+## Getting Help
+
+For help with any command, use:
+
+```bash
+help <command>
+```
+
+For example:
+
+```bash
+help balance
+```
+
+<Tip>
+You can use the Tab key for auto-completion of commands and parameters.
+</Tip>
+
+## Thread Safety
+
+Many commands include thread-safety checks to ensure they execute on the main thread. If called from another thread, they automatically redirect to the main event loop for safe execution.
+
+## Next Steps
+
+Explore individual command documentation to learn about specific features and options:
+
+- [balance](/cli/balance) - Manage exchange balances and limits
+- [config](/cli/config) - Configure global and strategy settings
+- [connect](/cli/connect) - Connect to exchanges
+- [create](/cli/create) - Create strategy configurations
+- [start/stop](/cli/start-stop) - Control bot execution
+- [history](/cli/history) - View trade history and performance
+- [status](/cli/status) - Monitor bot status

@@ -1,0 +1,333 @@
+---
+title: config
+description: View and modify global configurations and strategy parameters
+---
+
+## Overview
+
+The `config` command allows you to view and modify both global Hummingbot settings and strategy-specific parameters. It provides an interactive way to customize bot behavior without manually editing configuration files.
+
+## Basic Usage
+
+### View All Configurations
+
+```bash
+config
+```
+
+Displays all configurable settings organized into:
+- **Global Configurations**: System-wide settings
+- **Color Settings**: Terminal UI customization
+- **Strategy Configurations**: Active strategy parameters (if a strategy is loaded)
+
+**Example output:**
+```
+Global Configurations:
+    Key                              Value
+    kill_switch_mode                 False
+    kill_switch_rate                 -100
+    mqtt_bridge                      False
+    gateway_api_host                 localhost
+    gateway_api_port                 15888
+    rate_oracle_source               binance
+    global_token_symbol              USD
+    tables_format                    psql
+
+Color Settings:
+    Key               Value
+    top_pane          #000000
+    bottom_pane       #000000
+    output_pane       #262626
+    ...
+```
+
+## Modifying Configuration
+
+### Interactive Mode
+
+```bash
+config [key]
+```
+
+Enter the configuration key you want to modify, and Hummingbot will:
+1. Show the current value
+2. Prompt for a new value
+3. Validate the input
+4. Save the change
+
+**Example:**
+```bash
+config kill_switch_rate
+# Prompt: "What is the threshold for the kill switch rate? >>> "
+# Enter: -5
+# Result: Kill switch will trigger if portfolio drops 5%
+```
+
+### Direct Mode
+
+```bash
+config [key] [value]
+```
+
+<ParamField path="key" type="string" required>
+  The configuration parameter name
+</ParamField>
+
+<ParamField path="value" type="string" required>
+  The new value to set
+</ParamField>
+
+**Example:**
+```bash
+config global_token_symbol EUR
+config kill_switch_rate -10
+```
+
+## Global Configuration Options
+
+### Trading Controls
+
+<ParamField path="kill_switch_mode" type="boolean" default="False">
+  Enable automatic shutdown when portfolio value drops below threshold
+</ParamField>
+
+<ParamField path="kill_switch_rate" type="decimal" default="-100">
+  Percentage loss threshold for kill switch (e.g., -5 for 5% loss)
+</ParamField>
+
+<ParamField path="rate_limits_share_pct" type="decimal" default="100">
+  Percentage of exchange rate limits to use (100 = full limits)
+</ParamField>
+
+### Gateway Configuration
+
+<ParamField path="gateway_api_host" type="string" default="localhost">
+  Gateway server hostname
+</ParamField>
+
+<ParamField path="gateway_api_port" type="integer" default="15888">
+  Gateway server port
+</ParamField>
+
+<ParamField path="gateway_use_ssl" type="boolean" default="False">
+  Use SSL/TLS for Gateway connection
+</ParamField>
+
+### Rate Oracle
+
+<ParamField path="rate_oracle_source" type="string" default="binance">
+  Data source for asset price conversions (binance, coingecko, etc.)
+</ParamField>
+
+<ParamField path="global_token_symbol" type="string" default="USD">
+  Reference currency for portfolio valuation
+</ParamField>
+
+### MQTT Integration
+
+<ParamField path="mqtt_bridge" type="boolean" default="False">
+  Enable MQTT message broker integration
+</ParamField>
+
+<ParamField path="mqtt_host" type="string">
+  MQTT broker hostname
+</ParamField>
+
+<ParamField path="mqtt_port" type="integer" default="1883">
+  MQTT broker port
+</ParamField>
+
+<ParamField path="mqtt_username" type="string">
+  MQTT authentication username
+</ParamField>
+
+<ParamField path="mqtt_password" type="string">
+  MQTT authentication password (secure)
+</ParamField>
+
+### Display Options
+
+<ParamField path="tables_format" type="string" default="psql">
+  Table formatting style (psql, simple, grid, etc.)
+</ParamField>
+
+<ParamField path="tick_size" type="integer" default="1">
+  Update frequency for live displays (in seconds)
+</ParamField>
+
+### Timeouts
+
+<ParamField path="create_command_timeout" type="decimal" default="30">
+  Timeout for strategy creation in seconds
+</ParamField>
+
+<ParamField path="other_commands_timeout" type="decimal" default="30">
+  Timeout for other network operations in seconds
+</ParamField>
+
+## Strategy Configuration
+
+When a strategy is loaded, you can modify its parameters:
+
+```bash
+config order_amount 0.5
+config bid_spread 0.5
+config ask_spread 0.5
+```
+
+### Hot Reload (No Restart Required)
+
+For Pure Market Making and Perpetual Market Making strategies, certain parameters can be changed while the bot is running:
+
+**Percentage-based parameters:**
+- `bid_spread`
+- `ask_spread`
+- `order_level_spread`
+- `inventory_target_base_pct`
+
+**Other hot-reload parameters:**
+- `order_amount`
+- `order_levels`
+- `filled_order_delay`
+- `inventory_skew_enabled`
+- `price_ceiling` / `price_floor`
+- Order optimization settings
+
+<Info>
+When you modify these parameters, the running strategy automatically updates without requiring a restart.
+</Info>
+
+### Parameters Requiring Restart
+
+Most other strategy parameters require you to stop and restart the bot:
+
+```bash
+stop
+config exchange binance
+start
+```
+
+## Special Configuration Prompts
+
+### Inventory Target Base Percentage
+
+```bash
+config inventory_target_base_pct
+```
+
+This triggers a special prompt that:
+1. Fetches your current balances
+2. Calculates your current asset ratio
+3. Asks if you want to maintain this ratio
+4. Allows you to set a custom ratio if desired
+
+### Inventory Price
+
+```bash
+config inventory_price
+```
+
+Prompts for your asset acquisition cost to calculate accurate P&L.
+
+## Color Settings
+
+Customize the terminal UI colors:
+
+```bash
+config top_pane
+config bottom_pane
+config output_pane
+config input_pane
+config logs_pane
+config terminal_primary
+```
+
+Enter hex color codes (e.g., `#FF5733`) or color names.
+
+## Implementation Details
+
+The config command is implemented in `/hummingbot/client/command/config_command.py:99` and provides:
+
+- **Dual mode support**: Works with both legacy ConfigVar and modern ClientConfigAdapter
+- **Type validation**: Ensures values match expected types (bool, decimal, string, etc.)
+- **Secure handling**: Passwords and API keys are hidden during input
+- **Persistent storage**: Changes are saved to YAML configuration files
+- **Hot reload**: Certain strategy parameters update without restart
+
+## Configuration Files
+
+Changes are saved to:
+
+- **Global settings**: `conf/conf_client.yml`
+- **Strategy settings**: `conf/strategies/<strategy_file>.yml`
+
+<Warning>
+Manually editing configuration files while the bot is running may cause conflicts. Always use the `config` command or stop the bot before editing files.
+</Warning>
+
+## Common Use Cases
+
+### Enable Kill Switch Protection
+
+```bash
+config kill_switch_mode True
+config kill_switch_rate -5
+```
+
+Bot will automatically stop if portfolio drops by 5%.
+
+### Configure Gateway for DEX Trading
+
+```bash
+config gateway_api_host localhost
+config gateway_api_port 15888
+config gateway_use_ssl False
+```
+
+### Change Portfolio Display Currency
+
+```bash
+config global_token_symbol EUR
+```
+
+All balance displays will show values in EUR.
+
+### Increase Network Timeouts
+
+```bash
+config other_commands_timeout 60
+```
+
+Useful if you have a slower network connection.
+
+## Troubleshooting
+
+### Invalid Key Error
+
+If you see "Invalid key, please choose from the list":
+
+1. Run `config` without arguments to see all available keys
+2. Check spelling and capitalization
+3. Ensure a strategy is loaded for strategy-specific configs
+
+### Validation Errors
+
+If input validation fails:
+
+1. Check the expected type (boolean, decimal, string)
+2. Ensure numeric values are in valid ranges
+3. For booleans, use `True`/`False` or `Yes`/`No`
+
+### Changes Not Applied
+
+If configuration changes don't take effect:
+
+1. Check if the parameter requires a restart
+2. Stop and start the bot
+3. Verify the change was saved in the config file
+
+## Related Commands
+
+- [create](/cli/create) - Set initial strategy configuration
+- [balance](/cli/balance) - Configure balance limits (also saves to config)
+- [connect](/cli/connect) - Configure exchange API keys

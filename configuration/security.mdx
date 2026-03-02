@@ -1,0 +1,331 @@
+---
+title: Security & Encryption
+description: How Hummingbot secures API keys and sensitive configuration data
+---
+
+Hummingbot implements robust security measures to protect your API keys, secrets, and other sensitive data through password-based encryption.
+
+## Overview
+
+The security system uses **Ethereum keyfile encryption** (AES-128-CTR) to protect sensitive configuration values. All API credentials are encrypted before being stored on disk.
+
+<Warning>
+Your Hummingbot password is the only way to decrypt your API keys. If you forget your password, you will need to reconfigure all your exchange connections.
+</Warning>
+
+## Password Protection
+
+### Setting Your Password
+
+When you first run Hummingbot, you'll be prompted to create a password:
+
+```
+>>> Enter your new password:
+>>> Re-enter your password:
+```
+
+<Info>
+Your password is **never stored** anywhere. Hummingbot stores an encrypted verification word to validate your password on subsequent logins.
+</Info>
+
+### Password Verification
+
+Hummingbot validates your password using an encrypted verification file:
+
+<CodeGroup>
+```python Security Implementation
+from hummingbot.client.config.security import Security
+from hummingbot.client.config.config_crypt import (
+    PASSWORD_VERIFICATION_PATH,
+    PASSWORD_VERIFICATION_WORD,
+    validate_password,
+    store_password_verification,
+)
+
+# Password verification file location
+# CONF_DIR_PATH / ".password_verification"
+
+# Check if new password is required
+if Security.new_password_required():
+    # First time setup - no password verification file exists
+    create_new_password()
+
+# Validate existing password
+if validate_password(secrets_manager):
+    Security.login(secrets_manager)
+```
+</CodeGroup>
+
+### Password Requirements
+
+<AccordionGroup>
+  <Accordion title="Password Strength Recommendations">
+    - Minimum 8 characters
+    - Mix of uppercase and lowercase letters
+    - Include numbers and special characters
+    - Avoid common words or patterns
+    - Don't reuse passwords from other services
+  </Accordion>
+  <Accordion title="Password Storage">
+    Hummingbot stores an encrypted verification word at:
+    ```
+    conf/.password_verification
+    ```
+    This file contains the word "HummingBot" encrypted with your password to verify login attempts.
+  </Accordion>
+</AccordionGroup>
+
+## Encryption System
+
+### Encryption Algorithm
+
+Hummingbot uses **ETH Keyfile encryption** (same as Ethereum wallets):
+
+- **Algorithm**: AES-128-CTR
+- **Key Derivation**: PBKDF2 or Scrypt
+- **Key Length**: 32 bytes (256 bits)
+- **MAC**: Keccak-256 for integrity verification
+
+<CodeGroup>
+```python Encryption Implementation
+class ETHKeyFileSecretManger(BaseSecretsManager):
+    def encrypt_secret_value(self, attr: str, value: str):
+        """Encrypt a secret value using password-based encryption"""
+        password_bytes = self._password.encode()
+        value_bytes = value.encode()
+        keyfile_json = _create_v3_keyfile_json(value_bytes, password_bytes)
+        json_str = json.dumps(keyfile_json)
+        encrypted_value = binascii.hexlify(json_str.encode()).decode()
+        return encrypted_value
+    
+    def decrypt_secret_value(self, attr: str, value: str) -> str:
+        """Decrypt a secret value using the password"""
+        value = binascii.unhexlify(value)
+        decrypted_value = Account.decrypt(value.decode(), self._password).decode()
+        return decrypted_value
+```
+</CodeGroup>
+
+### What Gets Encrypted
+
+Hummingbot automatically encrypts fields marked as `is_secure=True`:
+
+<Steps>
+  <Step title="API Keys">
+    Exchange API keys (e.g., `binance_api_key`)
+  </Step>
+  <Step title="API Secrets">
+    Exchange API secrets (e.g., `binance_api_secret`)
+  </Step>
+  <Step title="Private Keys">
+    Wallet private keys for DEX trading
+  </Step>
+  <Step title="Passwords">
+    Third-party service passwords
+  </Step>
+</Steps>
+
+## Security Manager
+
+The `Security` class manages all encryption and decryption operations:
+
+### Login Process
+
+```python
+from hummingbot.client.config.security import Security
+from hummingbot.client.config.config_crypt import ETHKeyFileSecretManger
+
+# Create secrets manager with password
+secrets_manager = ETHKeyFileSecretManger(password)
+
+# Login and decrypt all connector configs
+if Security.login(secrets_manager):
+    # Password validated successfully
+    # All connector configs are decrypted automatically
+    print("Login successful")
+else:
+    print("Invalid password")
+```
+
+### Decryption Process
+
+When you log in, Hummingbot automatically:
+
+1. **Validates** your password against `.password_verification`
+2. **Scans** all connector config files in `conf/connectors/`
+3. **Decrypts** each connector's API credentials
+4. **Loads** the decrypted values into memory
+
+<CodeGroup>
+```python Automatic Decryption
+class Security:
+    @classmethod
+    def decrypt_all(cls):
+        """Decrypt all connector configuration files"""
+        cls._secure_configs.clear()
+        encrypted_files = list_connector_configs()
+        
+        for file in encrypted_files:
+            cls.decrypt_connector_config(file)
+        
+        cls._decryption_done.set()
+    
+    @classmethod
+    def decrypt_connector_config(cls, file_path: Path):
+        """Decrypt a single connector config file"""
+        connector_name = connector_name_from_file(file_path)
+        connector_config = load_connector_config_map_from_file(file_path)
+        cls._secure_configs[connector_name] = connector_config
+```
+</CodeGroup>
+
+### Accessing Decrypted Values
+
+```python
+from hummingbot.client.config.security import Security
+
+# Wait for decryption to complete
+await Security.wait_til_decryption_done()
+
+# Get API keys for a specific connector
+api_keys = Security.api_keys("binance")
+# Returns: {"binance_api_key": "...", "binance_api_secret": "..."}
+
+# Get full connector config
+connector_config = Security.decrypted_value("binance")
+```
+
+## Connector Configuration Security
+
+### Encrypted Storage Format
+
+Encrypted connector configs are stored as YAML files:
+
+```yaml conf/connectors/binance.yml
+###########################
+###   binance config    ###
+###########################
+
+connector: binance
+
+# API Key (encrypted)
+binance_api_key: 7b2263727970746f223a207b226369706865
+
+# API Secret (encrypted)  
+binance_api_secret: 7b2263727970746f223a207b226369706865
+```
+
+### Adding/Updating Credentials
+
+When you connect to an exchange, credentials are automatically encrypted:
+
+```python
+from hummingbot.client.config.security import Security
+
+# Update secure config (automatically encrypts)
+Security.update_secure_config(connector_config)
+
+# Remove secure config (deletes encrypted file)
+Security.remove_secure_config("binance")
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Strong Password" icon="key">
+    Use a unique, strong password you'll remember
+  </Card>
+  <Card title="Secure Backups" icon="cloud-arrow-up">
+    Backup your `conf/` directory to a secure location
+  </Card>
+  <Card title="Limited API Permissions" icon="shield-check">
+    Only grant necessary permissions (trading, reading - no withdrawals)
+  </Card>
+  <Card title="IP Whitelisting" icon="network-wired">
+    Enable IP whitelisting on exchange API keys when possible
+  </Card>
+</CardGroup>
+
+### Exchange API Key Setup
+
+<Steps>
+  <Step title="Create API Keys">
+    Generate API keys on your exchange's website
+  </Step>
+  <Step title="Restrict Permissions">
+    Enable only **Trading** and **Reading** permissions (disable withdrawals)
+  </Step>
+  <Step title="Whitelist IP (Optional)">
+    Add your server's IP address to the API key whitelist
+  </Step>
+  <Step title="Connect in Hummingbot">
+    Use the `connect` command to securely store your credentials
+  </Step>
+</Steps>
+
+## Security Considerations
+
+<Warning>
+**Important Security Notes**:
+- Hummingbot encryption protects against casual access to config files
+- It does NOT protect against malware or compromised systems
+- Always run Hummingbot on secure, trusted machines
+- Never share your password or encrypted config files
+</Warning>
+
+<AccordionGroup>
+  <Accordion title="File System Security">
+    Encrypted files are stored in plaintext on disk (just encrypted). Ensure:
+    - Use full-disk encryption on your system
+    - Restrict file permissions: `chmod 600 conf/connectors/*`
+    - Don't store configs in shared/public directories
+  </Accordion>
+  
+  <Accordion title="Memory Security">
+    Once decrypted, API keys exist in memory:
+    - Ensure your system has adequate security (firewall, anti-malware)
+    - Avoid running untrusted code on the same machine
+    - Use dedicated servers for production trading
+  </Accordion>
+  
+  <Accordion title="Network Security">
+    - Use VPN when trading on public networks
+    - Enable firewall rules to restrict inbound connections
+    - Keep your system and Hummingbot updated
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<Accordion title="Forgot Password">
+If you forgot your password:
+1. Stop Hummingbot
+2. Delete `.password_verification` and all files in `conf/connectors/`
+3. Restart Hummingbot and create a new password
+4. Reconnect to all exchanges using the `connect` command
+</Accordion>
+
+<Accordion title="Invalid Password Error">
+If you're certain your password is correct:
+1. Check for typos (passwords are case-sensitive)
+2. Verify `.password_verification` file exists in `conf/`
+3. If corrupted, follow the "Forgot Password" steps above
+</Accordion>
+
+<Accordion title="Decryption Failed">
+If connector configs fail to decrypt:
+1. Verify the connector YAML file isn't corrupted
+2. Check file permissions (must be readable)
+3. Re-connect to the exchange to regenerate the config
+</Accordion>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Config Files" href="/configuration/config-files" icon="file">
+    Learn about configuration file structure
+  </Card>
+  <Card title="Exchange Setup" href="/exchanges" icon="building-columns">
+    Connect to exchanges securely
+  </Card>
+</CardGroup>

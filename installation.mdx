@@ -1,0 +1,356 @@
+---
+title: Installation
+description: Install Hummingbot using Docker or from source for custom development
+---
+
+Hummingbot can be installed in two ways: using Docker for quick deployment, or from source for custom connector/strategy development.
+
+## Docker Installation (Recommended)
+
+The easiest way to get started with Hummingbot is using Docker. This method works on Linux, macOS, and Windows.
+
+<Steps>
+  <Step title="Install Docker Compose">
+    First, install Docker Compose on your system:
+    
+    <CodeGroup>
+    ```bash Linux
+    # Install Docker Engine and Docker Compose
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh get-docker.sh
+    sudo apt-get install docker-compose-plugin
+    ```
+    
+    ```bash macOS
+    # Install Docker Desktop for Mac
+    # Download from: https://docs.docker.com/desktop/install/mac-install/
+    # Docker Compose is included with Docker Desktop
+    ```
+    
+    ```bash Windows
+    # Install Docker Desktop for Windows
+    # Download from: https://docs.docker.com/desktop/install/windows-install/
+    # Docker Compose is included with Docker Desktop
+    ```
+    </CodeGroup>
+    
+    <Info>For detailed Docker installation instructions, visit the [official Docker Compose documentation](https://docs.docker.com/compose/install/).</Info>
+  </Step>
+  
+  <Step title="Clone the Hummingbot Repository">
+    Clone the repository and navigate to the directory:
+    
+    ```bash
+    git clone https://github.com/hummingbot/hummingbot.git
+    cd hummingbot
+    ```
+  </Step>
+  
+  <Step title="Run Setup">
+    Execute the setup command to configure your environment:
+    
+    ```bash
+    make setup
+    ```
+    
+    During setup, you'll be prompted:
+    
+    ```
+    Include Gateway? [y/N]
+    ```
+    
+    <Accordion title="Should I include Gateway?">
+      Answer **y** if you plan to:
+      - Trade on DEXs (Uniswap, SushiSwap, Raydium, etc.)
+      - Use AMM or CLMM strategies
+      - Connect to DeFi protocols
+      
+      Answer **N** if you only plan to:
+      - Trade on centralized exchanges (Binance, Coinbase, etc.)
+      - Use CLOB strategies
+    </Accordion>
+  </Step>
+  
+  <Step title="Deploy Hummingbot">
+    Start the Hummingbot container:
+    
+    ```bash
+    make deploy
+    ```
+    
+    This will build and start the Docker containers in the background.
+  </Step>
+  
+  <Step title="Attach to the Running Instance">
+    Connect to the Hummingbot CLI:
+    
+    ```bash
+    docker attach hummingbot
+    ```
+    
+    You should see the Hummingbot welcome screen:
+    
+    ```
+    ██╗  ██╗██╗   ██╗███╗   ███╗███╗   ███╗██╗███╗   ██╗ ██████╗ ██████╗  ██████╗ ████████╗
+    ██║  ██║██║   ██║████╗ ████║████╗ ████║██║████╗  ██║██╔════╝ ██╔══██╗██╔═══██╗╚══██╔══╝
+    ███████║██║   ██║██╔████╔██║██╔████╔██║██║██╔██╗ ██║██║  ███╗██████╔╝██║   ██║   ██║
+    ██╔══██║██║   ██║██║╚██╔╝██║██║╚██╔╝██║██║██║╚██╗██║██║   ██║██╔══██╗██║   ██║   ██║
+    ██║  ██║╚██████╔╝██║ ╚═╝ ██║██║ ╚═╝ ██║██║██║ ╚████║╚██████╔╝██████╔╝╚██████╔╝   ██║
+    ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═════╝  ╚═════╝    ╚═╝
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+To detach from the container without stopping it, press `Ctrl+P` followed by `Ctrl+Q`. To reattach later, run `docker attach hummingbot`.
+</Tip>
+
+### Gateway Configuration
+
+If you installed Gateway, you'll need to configure it:
+
+<Note>
+**Development vs Production Mode**
+
+By default, Gateway starts in **development mode** with unencrypted HTTP endpoints. For production use:
+
+1. Set the environment variable: `DEV=false`
+2. Generate SSL certificates: `gateway generate-certs` (run inside Hummingbot)
+3. Restart Gateway
+
+See the [Gateway documentation](https://hummingbot.org/gateway/installation/#development-vs-production-modes) for details.
+</Note>
+
+## Source Installation
+
+Install from source if you plan to:
+- Develop custom connectors or strategies
+- Modify core Hummingbot code
+- Debug issues or contribute to the project
+
+<Warning>
+Source installation requires more technical expertise and maintenance compared to Docker. For most users, Docker is recommended.
+</Warning>
+
+<Steps>
+  <Step title="Prerequisites">
+    Ensure you have the following installed:
+    
+    - **Python 3.10+** with development headers
+    - **Anaconda** or **Miniconda** (3.7+)
+    - **build-essential** (Linux) or Xcode Command Line Tools (macOS)
+    - **git**
+    
+    <CodeGroup>
+    ```bash Linux
+    # Install Anaconda
+    wget https://repo.anaconda.com/archive/Anaconda3-latest-Linux-x86_64.sh
+    bash Anaconda3-latest-Linux-x86_64.sh
+    
+    # Install build tools
+    sudo apt-get update
+    sudo apt-get install -y build-essential
+    ```
+    
+    ```bash macOS
+    # Install Anaconda
+    wget https://repo.anaconda.com/archive/Anaconda3-latest-MacOSX-x86_64.sh
+    bash Anaconda3-latest-MacOSX-x86_64.sh
+    
+    # Install Xcode Command Line Tools
+    xcode-select --install
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Clone Repository">
+    ```bash
+    git clone https://github.com/hummingbot/hummingbot.git
+    cd hummingbot
+    ```
+  </Step>
+  
+  <Step title="Run Installation Script">
+    The installation script will create a conda environment and install dependencies:
+    
+    ```bash
+    ./install
+    ```
+    
+    For dYdX support (requires different dependencies):
+    
+    ```bash
+    ./install --dydx
+    ```
+    
+    This script will:
+    - Create a conda environment named `hummingbot`
+    - Install Python dependencies from `setup/environment.yml`
+    - Install additional pip packages from `setup/pip_packages.txt`
+    - Set up pre-commit hooks
+    - On macOS, install the `appnope` package
+  </Step>
+  
+  <Step title="Activate the Environment">
+    ```bash
+    conda activate hummingbot
+    ```
+  </Step>
+  
+  <Step title="Compile Cython Extensions">
+    Hummingbot uses Cython for performance-critical components:
+    
+    ```bash
+    ./compile
+    ```
+    
+    <Info>You'll need to recompile after making changes to `.pyx` files. The `./compile` script handles this automatically.</Info>
+  </Step>
+  
+  <Step title="Start Hummingbot">
+    ```bash
+    ./start
+    ```
+    
+    Or run directly:
+    
+    ```bash
+    python bin/hummingbot_quickstart.py
+    ```
+  </Step>
+</Steps>
+
+### Development Setup
+
+If you're developing custom code, you may want to install in editable mode:
+
+```bash
+# After activating the conda environment
+conda develop .
+python -m pip install -e .
+```
+
+This allows you to modify Python files without reinstalling the package.
+
+## Verify Installation
+
+Once Hummingbot is running, verify your installation:
+
+<Steps>
+  <Step title="Check Version">
+    In the Hummingbot CLI, run:
+    
+    ```
+    >>> version
+    ```
+    
+    You should see output like:
+    
+    ```
+    Version: 2.13.0
+    ```
+  </Step>
+  
+  <Step title="List Available Exchanges">
+    ```
+    >>> connect
+    ```
+    
+    This will show all available exchange connectors. The list should include major exchanges like `binance`, `coinbase_advanced_trade`, `okx`, etc.
+  </Step>
+  
+  <Step title="Check Gateway (if installed)">
+    ```
+    >>> gateway status
+    ```
+    
+    If Gateway is running, you should see connection information.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<Accordion title="Docker: Permission denied">
+  If you get permission errors when running Docker commands:
+  
+  ```bash
+  # Add your user to the docker group (Linux)
+  sudo usermod -aG docker $USER
+  newgrp docker
+  ```
+  
+  Then log out and back in for changes to take effect.
+</Accordion>
+
+<Accordion title="Source: Compilation errors">
+  If you encounter compilation errors:
+  
+  1. Ensure you have the latest build tools:
+     ```bash
+     # Linux
+     sudo apt-get update && sudo apt-get upgrade
+     sudo apt-get install -y build-essential
+     
+     # macOS
+     xcode-select --install
+     ```
+  
+  2. Clean and rebuild:
+     ```bash
+     ./clean
+     ./compile
+     ```
+</Accordion>
+
+<Accordion title="Conda environment issues">
+  If the conda environment fails to create or activate:
+  
+  ```bash
+  # Remove existing environment
+  conda env remove -n hummingbot
+  
+  # Recreate from environment file
+  conda env create -f setup/environment.yml
+  ```
+</Accordion>
+
+<Accordion title="Missing TA-Lib">
+  TA-Lib requires system libraries:
+  
+  ```bash
+  # Linux
+  wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
+  tar -xzf ta-lib-0.4.0-src.tar.gz
+  cd ta-lib/
+  ./configure --prefix=/usr
+  make
+  sudo make install
+  
+  # macOS
+  brew install ta-lib
+  ```
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/get-started/quickstart">
+    Run your first trading bot
+  </Card>
+  
+  <Card title="Connect Exchange" icon="plug" href="/exchanges">
+    Set up API keys for your exchange
+  </Card>
+  
+  <Card title="Choose a Strategy" icon="chess" href="/strategies">
+    Explore built-in strategies
+  </Card>
+  
+  <Card title="Configure Gateway" icon="bridge" href="/gateway">
+    Set up DEX trading (if installed)
+  </Card>
+</CardGroup>
+
+<Info>
+For comprehensive troubleshooting, visit the [Hummingbot documentation](https://hummingbot.org/troubleshooting/) or ask in the [Discord community](https://discord.gg/hummingbot).
+</Info>

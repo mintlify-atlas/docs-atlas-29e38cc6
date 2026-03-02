@@ -1,0 +1,399 @@
+---
+title: start / stop
+description: Control bot execution with start and stop commands
+---
+
+## start
+
+Starts the trading bot with your configured strategy.
+
+### Basic Usage
+
+```bash
+start
+```
+
+This will:
+1. Perform preliminary checks (configuration, connections)
+2. Initialize the strategy
+3. Connect to exchanges
+4. Begin executing the trading logic
+
+### Usage with Options
+
+```bash
+start --log-level [LEVEL]
+```
+
+<ParamField path="log-level" type="string">
+  Set logging verbosity: DEBUG, INFO, WARNING, ERROR, CRITICAL
+</ParamField>
+
+**Example:**
+```bash
+start --log-level DEBUG
+```
+
+### Start V2 Strategy
+
+```bash
+start --v2-conf [config_file]
+```
+
+<ParamField path="v2-conf" type="string">
+  Path to V2 strategy configuration file (for script strategies)
+</ParamField>
+
+**Example:**
+```bash
+start --v2-conf my_script_config.yml
+```
+
+## Pre-Start Checks
+
+Before starting, Hummingbot validates:
+
+<Steps>
+  <Step title="Strategy Configuration">
+    - Strategy file exists
+    - All required parameters are set
+    - Configuration is valid
+  </Step>
+  
+  <Step title="Exchange Connections">
+    - API credentials are configured
+    - Connections can be established
+    - Exchange APIs are responsive
+  </Step>
+  
+  <Step title="Oracle Rates (if required)">
+    For strategies using rate conversion:
+    ```
+    Rate Oracle:
+    Source: binance
+    BTC-USDT: 50000.00
+    ETH-USDT: 3000.00
+    
+    Please confirm to proceed if the above oracle source 
+    and rates are correct for this strategy (Yes/No) >>>
+    ```
+  </Step>
+  
+  <Step title="Gateway (for DEX strategies)">
+    - Gateway service is running
+    - Blockchain connections are active
+    - Wallet is connected
+  </Step>
+</Steps>
+
+### Successful Start
+
+```
+Preliminary checks:
+  - Strategy check: All required parameters confirmed.
+  - Exchange check: All connections confirmed.
+  - All checks: Confirmed.
+
+Status check complete. Strategy 'pure_market_making' started successfully.
+```
+
+### Paper Trading Notice
+
+If using paper trading mode:
+
+```
+Paper Trading Active: All orders are simulated and no real orders are placed.
+
+Status check complete. Strategy 'pure_market_making' started successfully.
+```
+
+## Start Failures
+
+Common reasons the bot fails to start:
+
+### Configuration Issues
+
+```
+Preliminary checks:
+  - Strategy check: Please import or create a strategy.
+
+Status checks failed. Start aborted.
+```
+
+**Solution:** Create or import a strategy:
+```bash
+create
+# or
+import my_strategy.yml
+```
+
+### Connection Errors
+
+```
+Preliminary checks:
+  - Strategy check: All required parameters confirmed.
+  - Exchange check: Invalid connections:
+    binance: Invalid API key or secret
+
+Status checks failed. Start aborted.
+```
+
+**Solution:** Reconnect to the exchange:
+```bash
+connect binance
+```
+
+### Bot Already Running
+
+```
+The bot is already running - please run "stop" first
+```
+
+**Solution:** Stop the current bot:
+```bash
+stop
+start
+```
+
+## stop
+
+Stops the currently running trading bot.
+
+### Basic Usage
+
+```bash
+stop
+```
+
+This will:
+1. Cancel all outstanding orders
+2. Stop the strategy execution
+3. Disconnect from exchanges
+4. Clean up resources
+
+**Output:**
+```
+Winding down...
+Canceling outstanding orders...
+Hummingbot stopped.
+```
+
+### Skip Order Cancellation
+
+```bash
+stop --skip-order-cancellation
+```
+
+Stops the bot without canceling open orders.
+
+<Warning>
+Use this with caution. Outstanding orders will remain on the exchange and may get filled after the bot stops.
+</Warning>
+
+## Stop Process Details
+
+When you run `stop`, the following happens in order:
+
+<Steps>
+  <Step title="V2 Strategy Cleanup">
+    If using a V2 strategy, calls `on_stop()` for cleanup
+  </Step>
+  
+  <Step title="Stop Strategy">
+    Stops the strategy execution loop
+  </Step>
+  
+  <Step title="Cancel Orders">
+    Cancels all outstanding orders (unless skipped)
+  </Step>
+  
+  <Step title="Remove Connectors">
+    Disconnects from all exchanges
+  </Step>
+  
+  <Step title="Stop Clock">
+    Stops the internal clock/event loop
+  </Step>
+  
+  <Step title="Clear References">
+    Cleans up strategy and configuration references
+  </Step>
+</Steps>
+
+## Platform-Specific Behavior
+
+### macOS App Nap
+
+On macOS:
+- **Start**: Disables App Nap to prevent system sleep during trading
+- **Stop**: Re-enables App Nap to allow normal power management
+
+## Implementation Details
+
+### start Command
+
+Implemented in `/hummingbot/client/command/start_command.py:44`
+
+**Features:**
+- Thread-safe execution (redirects to main thread if needed)
+- Async validation with timeout (default 300s for Gateway)
+- Oracle rate confirmation for strategies requiring conversions
+- MQTT integration (patches loggers and starts event forwarding)
+- V2 strategy support with config file parsing
+
+### stop Command
+
+Implemented in `/hummingbot/client/command/stop_command.py:13`
+
+**Features:**
+- Thread-safe execution
+- Graceful shutdown sequence
+- V2 strategy cleanup hooks
+- Order cancellation (optional)
+- Complete resource cleanup
+
+## Common Workflows
+
+### Normal Operation
+
+```bash
+# Start trading
+start
+
+# Monitor performance
+status --live
+
+# Stop when done
+stop
+```
+
+### Quick Restart
+
+```bash
+# Stop and immediately restart
+stop && start
+```
+
+### Testing Different Log Levels
+
+```bash
+# Start with debug logging
+start --log-level DEBUG
+
+# Stop and restart with normal logging
+stop
+start --log-level INFO
+```
+
+### Emergency Stop (Keep Orders)
+
+```bash
+# Stop without canceling orders
+stop --skip-order-cancellation
+```
+
+## Troubleshooting
+
+### Gateway Timeout
+
+For DEX strategies, if you see:
+
+```
+TimeoutError waiting for gateway service to go online...
+Unable to start strategy pure_market_making.
+```
+
+**Solutions:**
+1. Ensure Gateway is running:
+   ```bash
+   gateway start
+   ```
+
+2. Check Gateway connection:
+   ```bash
+   gateway status
+   ```
+
+3. Verify Gateway config:
+   ```bash
+   config gateway_api_host
+   config gateway_api_port
+   ```
+
+### Network Errors During Start
+
+If you see network timeouts:
+
+```
+A network error prevented the connection check to complete.
+```
+
+**Solutions:**
+1. Check internet connection
+2. Verify exchange is online
+3. Increase timeout:
+   ```bash
+   config other_commands_timeout 60
+   ```
+
+### Orders Not Canceling on Stop
+
+If orders remain after stopping:
+
+1. Manually cancel via exchange website
+2. Or restart bot and stop again:
+   ```bash
+   start
+   stop
+   ```
+
+### "Already Running" Error
+
+If bot thinks it's running but no strategy is active:
+
+1. Try stopping first:
+   ```bash
+   stop
+   ```
+
+2. If that doesn't work, restart Hummingbot completely
+
+## Monitoring After Start
+
+Once started, use these commands to monitor:
+
+```bash
+# View current status
+status
+
+# Live updating status
+status --live
+
+# Check recent trades
+history
+
+# View balances
+balance
+```
+
+## Automatic Restart
+
+Hummingbot doesn't automatically restart if it stops. However, you can:
+
+1. **Use external process managers:**
+   - systemd (Linux)
+   - launchd (macOS)
+   - PM2 (cross-platform)
+
+2. **Enable kill switch** to auto-stop on losses:
+   ```bash
+   config kill_switch_mode True
+   config kill_switch_rate -5
+   ```
+
+## Related Commands
+
+- [status](/cli/status) - Check if bot is running and view performance
+- [config](/cli/config) - Adjust settings before starting
+- [import](/cli/import) - Load a strategy before starting
+- [exit](/cli/exit) - Close Hummingbot completely

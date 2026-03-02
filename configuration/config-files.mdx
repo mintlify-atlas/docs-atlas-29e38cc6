@@ -1,0 +1,259 @@
+---
+title: Configuration Files
+description: Understanding Hummingbot's configuration file structure and locations
+---
+
+Hummingbot uses YAML configuration files to store strategy settings, connector credentials, and global configurations. This guide explains the structure and locations of these files.
+
+## Configuration Directory Structure
+
+All configuration files are stored in the `conf/` directory within your Hummingbot installation:
+
+```
+conf/
+├── conf_client.yml              # Global client settings
+├── conf_fee_overrides.yml       # Custom trading fee overrides
+├── connectors/                  # Exchange API credentials (encrypted)
+│   ├── binance.yml
+│   ├── kucoin.yml
+│   └── ...
+├── strategies/                  # Strategy configuration files
+│   ├── conf_pure_mm_1.yml
+│   ├── conf_xemm_1.yml
+│   └── ...
+├── scripts/                     # Script strategy configs
+└── controllers/                 # Controller configs
+```
+
+<Note>
+The `conf/` directory is created automatically on first run. Configuration files are encrypted using your password when they contain sensitive information like API keys.
+</Note>
+
+## Configuration File Types
+
+### Client Configuration (`conf_client.yml`)
+
+The main client configuration file contains global settings that apply to all strategies:
+
+```yaml client.yml
+instance_id: abc123def456
+log_level: INFO
+log_file_path: logs/
+kill_switch_mode: kill_switch_disabled
+autofill_import: disabled
+send_error_logs: true
+
+# Paper Trading Configuration
+paper_trade:
+  paper_trade_exchanges:
+    - binance
+    - kucoin
+  paper_trade_account_balance:
+    BTC: 1
+    USDT: 100000
+    ETH: 20
+
+# Rate Oracle Source
+rate_oracle_source:
+  name: binance
+
+# Global Token Settings
+global_token:
+  global_token_name: USDT
+  global_token_symbol: $
+```
+
+<Tip>
+You can edit `conf_client.yml` directly or use the `config` command within Hummingbot to modify settings interactively.
+</Tip>
+
+### Strategy Configuration Files
+
+Strategy configs are stored in `conf/strategies/` and follow the naming pattern `conf_{strategy_name}_{index}.yml`:
+
+```yaml conf_pure_mm_1.yml
+template_version: 24
+strategy: pure_market_making
+
+# Exchange and token parameters
+exchange: binance
+market: BTC-USDT
+
+# Spreads
+bid_spread: 0.5
+ask_spread: 0.5
+minimum_spread: 0.2
+
+# Order settings
+order_amount: 0.001
+order_refresh_time: 30
+order_levels: 1
+
+# Price source
+price_source: current_market
+price_type: mid_price
+```
+
+<Warning>
+Never manually edit strategy files while Hummingbot is running. Always stop the bot first, make changes, then restart.
+</Warning>
+
+### Connector Configuration Files
+
+Connector configs in `conf/connectors/` store encrypted API credentials:
+
+```yaml binance.yml
+###########################
+###   binance config    ###
+###########################
+
+connector: binance
+
+# API credentials (encrypted)
+binance_api_key: [encrypted_value]
+binance_api_secret: [encrypted_value]
+```
+
+<Info>
+API keys and secrets are automatically encrypted using your Hummingbot password. See the [Security](/configuration/security) page for details.
+</Info>
+
+## Configuration File Locations
+
+### Default Paths
+
+Hummingbot uses these default paths (defined in `hummingbot/client/settings.py`):
+
+<CodeGroup>
+```python File Paths
+# Main directories
+CONF_DIR_PATH = root_path() / "conf"
+TEMPLATE_PATH = root_path() / "hummingbot" / "templates"
+
+# Specific config files
+CLIENT_CONFIG_PATH = CONF_DIR_PATH / "conf_client.yml"
+TRADE_FEES_CONFIG_PATH = CONF_DIR_PATH / "conf_fee_overrides.yml"
+STRATEGIES_CONF_DIR_PATH = CONF_DIR_PATH / "strategies"
+CONNECTORS_CONF_DIR_PATH = CONF_DIR_PATH / "connectors"
+SCRIPT_STRATEGY_CONF_DIR_PATH = CONF_DIR_PATH / "scripts"
+CONTROLLERS_CONF_DIR_PATH = CONF_DIR_PATH / "controllers"
+```
+</CodeGroup>
+
+### Accessing Config Files Programmatically
+
+You can access configuration helpers from the codebase:
+
+```python
+from hummingbot.client.config.config_helpers import (
+    read_yml_file,
+    save_to_yml,
+    load_client_config_map_from_file,
+    get_connector_config_yml_path,
+)
+
+# Read client config
+client_config = load_client_config_map_from_file()
+
+# Get path to a connector config
+binance_path = get_connector_config_yml_path("binance")
+
+# Read any YAML file
+config_data = read_yml_file(Path("conf/conf_client.yml"))
+```
+
+## Template Files
+
+Template files in `hummingbot/templates/` serve as blueprints for new configurations:
+
+- `conf_fee_overrides_TEMPLATE.yml` - Fee override template
+- `conf_pure_market_making_strategy_TEMPLATE.yml` - Pure MM strategy template
+- `hummingbot_logs_TEMPLATE.yml` - Logging configuration template
+
+<Accordion title="Example: Pure Market Making Template">
+```yaml
+########################################################
+###       Pure market making strategy config         ###
+########################################################
+
+template_version: 24
+strategy: null
+
+# Exchange and token parameters
+exchange: null
+market: null
+
+# How far away from mid price to place the bid order
+bid_spread: null
+
+# How far away from mid price to place the ask order
+ask_spread: null
+
+# Time in seconds before cancelling and placing new orders
+order_refresh_time: null
+
+# Size of your bid and ask order
+order_amount: null
+```
+</Accordion>
+
+## Configuration Version Control
+
+Each configuration file includes a `template_version` field:
+
+```yaml
+template_version: 24
+```
+
+When Hummingbot detects an outdated config file, it automatically:
+1. Backs up the old configuration
+2. Creates a new config from the latest template
+3. Migrates your settings to the new format
+
+## Common Configuration Tasks
+
+<CardGroup cols={2}>
+  <Card title="Create New Strategy" icon="file-plus">
+    Use `create` command to generate a new strategy config from template
+  </Card>
+  <Card title="Import Existing Strategy" icon="file-import">
+    Use `import` command to load and activate a saved strategy config
+  </Card>
+  <Card title="List All Configs" icon="list">
+    Use `config` command to view current configuration values
+  </Card>
+  <Card title="Edit Configurations" icon="pen">
+    Stop bot, edit YAML files directly, then restart
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Backup Your Configs">
+    Regularly backup your `conf/` directory, especially before updates
+  </Step>
+  <Step title="Use Version Control">
+    Consider using git to track changes to your strategy configurations (exclude connector files with API keys)
+  </Step>
+  <Step title="Document Your Changes">
+    Add comments to your config files explaining custom settings
+  </Step>
+  <Step title="Test New Configs">
+    Always test new configurations in paper trading mode first
+  </Step>
+</Steps>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Security" href="/configuration/security" icon="shield">
+    Learn about encryption and API key security
+  </Card>
+  <Card title="Global Settings" href="/configuration/global-settings" icon="globe">
+    Configure global client settings
+  </Card>
+  <Card title="Paper Trading" href="/configuration/paper-trading" icon="flask">
+    Set up paper trading mode
+  </Card>
+</CardGroup>

@@ -1,0 +1,571 @@
+---
+title: ConnectorBase
+description: Base class for all exchange and market connectors
+---
+
+`ConnectorBase` is the abstract base class that all Hummingbot exchange connectors extend. It provides the fundamental interface for trading operations, balance management, and order execution.
+
+## Class Definition
+
+```python
+class ConnectorBase(NetworkIterator):
+    def __init__(self, balance_asset_limit: Optional[Dict[str, Dict[str, Decimal]]] = None):
+        super().__init__()
+        self._account_balances = {}  # Dict[asset_name:str, Decimal]
+        self._account_available_balances = {}  # Dict[asset_name:str, Decimal]
+```
+
+## Core Properties
+
+<ParamField path="name" type="str">
+  Returns the connector name (typically the class name).
+</ParamField>
+
+<ParamField path="display_name" type="str">
+  Returns the display name for the connector (defaults to name).
+</ParamField>
+
+<ParamField path="ready" type="bool">
+  Indicates whether the connector is ready to be used. Must be implemented by subclasses.
+</ParamField>
+
+<ParamField path="status_dict" type="Dict[str, bool]">
+  A dictionary of statuses of various connector components. Must be implemented by subclasses.
+</ParamField>
+
+<ParamField path="in_flight_orders" type="Dict[str, InFlightOrderBase]">
+  Returns a dictionary of all in-flight orders tracked by this connector. Must be implemented by subclasses.
+</ParamField>
+
+<ParamField path="event_logs" type="List[any]">
+  Returns a list of all events logged by this connector.
+</ParamField>
+
+<ParamField path="available_balances" type="Dict[str, Decimal]">
+  Returns the available balance for all assets.
+</ParamField>
+
+<ParamField path="real_time_balance_update" type="bool">
+  Flag indicating whether the connector provides real-time balance updates.
+</ParamField>
+
+## Balance Management
+
+### get_balance
+
+```python
+def get_balance(self, currency: str) -> Decimal:
+    """
+    Returns the total balance for the given currency.
+    """
+```
+
+<ParamField path="currency" type="str">
+  The currency (token) name to get balance for.
+</ParamField>
+
+<ResponseField name="return" type="Decimal">
+  Total balance for the given currency.
+</ResponseField>
+
+### get_available_balance
+
+```python
+def get_available_balance(self, currency: str) -> Decimal:
+    """
+    Returns available balance for trading. Accounts for in-flight orders and 
+    applies balance limits if configured.
+    """
+```
+
+<ParamField path="currency" type="str">
+  The currency (token) name.
+</ParamField>
+
+<ResponseField name="return" type="Decimal">
+  Available balance for trading for the specified currency.
+</ResponseField>
+
+### get_all_balances
+
+```python
+def get_all_balances(self) -> Dict[str, Decimal]:
+    """
+    Returns total balances of all assets.
+    """
+```
+
+<ResponseField name="return" type="Dict[str, Decimal]">
+  Dictionary mapping asset names to total balances.
+</ResponseField>
+
+## Order Execution
+
+### buy
+
+```python
+def buy(
+    self,
+    trading_pair: str,
+    amount: Decimal,
+    order_type: OrderType,
+    price: Decimal,
+    **kwargs
+) -> str:
+    """
+    Buys an amount of base asset (of the given trading pair).
+    """
+```
+
+<ParamField path="trading_pair" type="str">
+  The market (e.g. BTC-USDT) to buy from.
+</ParamField>
+
+<ParamField path="amount" type="Decimal">
+  The amount in base token value.
+</ParamField>
+
+<ParamField path="order_type" type="OrderType">
+  The order type (MARKET or LIMIT).
+</ParamField>
+
+<ParamField path="price" type="Decimal">
+  The price for the order.
+</ParamField>
+
+<ParamField path="kwargs" type="**kwargs">
+  Additional parameters (e.g., expiration_ts, position_action).
+</ParamField>
+
+<ResponseField name="return" type="str">
+  The order ID (client_order_id) of the created buy order.
+</ResponseField>
+
+### sell
+
+```python
+def sell(
+    self,
+    trading_pair: str,
+    amount: Decimal,
+    order_type: OrderType,
+    price: Decimal,
+    **kwargs
+) -> str:
+    """
+    Sells an amount of base asset (of the given trading pair).
+    """
+```
+
+Same parameters as `buy`, but executes a sell order.
+
+<ResponseField name="return" type="str">
+  The order ID (client_order_id) of the created sell order.
+</ResponseField>
+
+### cancel
+
+```python
+def cancel(self, trading_pair: str, client_order_id: str):
+    """
+    Cancels an order.
+    """
+```
+
+<ParamField path="trading_pair" type="str">
+  The market (e.g. BTC-USDT) of the order.
+</ParamField>
+
+<ParamField path="client_order_id" type="str">
+  The internal order ID.
+</ParamField>
+
+### cancel_all
+
+```python
+async def cancel_all(self, timeout_seconds: float) -> List[CancellationResult]:
+    """
+    Cancels all in-flight orders and waits for cancellation results.
+    """
+```
+
+<ParamField path="timeout_seconds" type="float">
+  The timeout at which the operation will be canceled.
+</ParamField>
+
+<ResponseField name="return" type="List[CancellationResult]">
+  List of CancellationResult indicating whether each order was successfully canceled.
+</ResponseField>
+
+## Batch Operations
+
+### batch_order_create
+
+```python
+def batch_order_create(
+    self,
+    orders_to_create: List[Union[LimitOrder, MarketOrder]]
+) -> List[Union[LimitOrder, MarketOrder]]:
+    """
+    Issues a batch order creation as a single API request for exchanges that 
+    implement this feature. The default implementation sends requests one by one.
+    """
+```
+
+<ParamField path="orders_to_create" type="List[Union[LimitOrder, MarketOrder]]">
+  List of LimitOrder or MarketOrder objects representing orders to create.
+</ParamField>
+
+<ResponseField name="return" type="List[Union[LimitOrder, MarketOrder]]">
+  List of created orders complete with generated order IDs.
+</ResponseField>
+
+### batch_order_cancel
+
+```python
+def batch_order_cancel(self, orders_to_cancel: List[LimitOrder]):
+    """
+    Issues a batch order cancelation as a single API request for exchanges that 
+    implement this feature. The default implementation sends requests one by one.
+    """
+```
+
+<ParamField path="orders_to_cancel" type="List[LimitOrder]">
+  List of orders to cancel.
+</ParamField>
+
+## Price and Trading Rules
+
+### get_price
+
+```python
+def get_price(self, trading_pair: str, is_buy: bool, amount: Decimal = s_decimal_NaN) -> Decimal:
+    """
+    Gets the price for the market trading pair.
+    """
+```
+
+<ParamField path="trading_pair" type="str">
+  The market trading pair.
+</ParamField>
+
+<ParamField path="is_buy" type="bool">
+  Whether to get buy price (True) or sell price (False).
+</ParamField>
+
+<ParamField path="amount" type="Decimal" default="NaN">
+  The amount (optional).
+</ParamField>
+
+<ResponseField name="return" type="Decimal">
+  The price for the trading pair.
+</ResponseField>
+
+### get_order_price_quantum
+
+```python
+def get_order_price_quantum(self, trading_pair: str, price: Decimal) -> Decimal:
+    """
+    Returns a price step, the minimum price increment for a given trading pair.
+    """
+```
+
+<ParamField path="trading_pair" type="str">
+  The trading pair.
+</ParamField>
+
+<ParamField path="price" type="Decimal">
+  The price value.
+</ParamField>
+
+<ResponseField name="return" type="Decimal">
+  The minimum price increment.
+</ResponseField>
+
+### get_order_size_quantum
+
+```python
+def get_order_size_quantum(self, trading_pair: str, order_size: Decimal) -> Decimal:
+    """
+    Returns an order amount step, the minimum amount increment for a given trading pair.
+    """
+```
+
+<ParamField path="trading_pair" type="str">
+  The trading pair.
+</ParamField>
+
+<ParamField path="order_size" type="Decimal">
+  The order size value.
+</ParamField>
+
+<ResponseField name="return" type="Decimal">
+  The minimum amount increment.
+</ResponseField>
+
+### quantize_order_price
+
+```python
+def quantize_order_price(self, trading_pair: str, price: Decimal) -> Decimal:
+    """
+    Applies trading rule to quantize order price.
+    """
+```
+
+<ParamField path="trading_pair" type="str">
+  The trading pair.
+</ParamField>
+
+<ParamField path="price" type="Decimal">
+  The price to quantize.
+</ParamField>
+
+<ResponseField name="return" type="Decimal">
+  The quantized price that conforms to exchange rules.
+</ResponseField>
+
+### quantize_order_amount
+
+```python
+def quantize_order_amount(self, trading_pair: str, amount: Decimal) -> Decimal:
+    """
+    Applies trading rule to quantize order amount.
+    """
+```
+
+<ParamField path="trading_pair" type="str">
+  The trading pair.
+</ParamField>
+
+<ParamField path="amount" type="Decimal">
+  The amount to quantize.
+</ParamField>
+
+<ResponseField name="return" type="Decimal">
+  The quantized amount that conforms to exchange rules.
+</ResponseField>
+
+## Async Methods
+
+### get_quote_price
+
+```python
+async def get_quote_price(
+    self,
+    trading_pair: str,
+    is_buy: bool,
+    amount: Decimal
+) -> Decimal:
+    """
+    Returns a quote price (or exchange rate) for a given amount.
+    """
+```
+
+<ParamField path="trading_pair" type="str">
+  The market trading pair.
+</ParamField>
+
+<ParamField path="is_buy" type="bool">
+  True for buy order, False for sell order.
+</ParamField>
+
+<ParamField path="amount" type="Decimal">
+  The order amount.
+</ParamField>
+
+<ResponseField name="return" type="Decimal">
+  The quoted price.
+</ResponseField>
+
+### get_order_price
+
+```python
+async def get_order_price(
+    self,
+    trading_pair: str,
+    is_buy: bool,
+    amount: Decimal
+) -> Decimal:
+    """
+    Returns the price required for order submission. This price could differ 
+    from the quote price (e.g. for an exchange with order book).
+    """
+```
+
+Same parameters as `get_quote_price`.
+
+<ResponseField name="return" type="Decimal">
+  The price to specify in an order.
+</ResponseField>
+
+### all_trading_pairs
+
+```python
+async def all_trading_pairs(self) -> List[str]:
+    """
+    List of all trading pairs supported by the connector.
+    """
+```
+
+<ResponseField name="return" type="List[str]">
+  List of trading pair symbols in the Hummingbot format.
+</ResponseField>
+
+## Balance Calculations
+
+### in_flight_asset_balances
+
+```python
+def in_flight_asset_balances(
+    self,
+    in_flight_orders: Dict[str, InFlightOrderBase]
+) -> Dict[str, Decimal]:
+    """
+    Calculates total asset balances locked in in_flight_orders including fee (estimated).
+    For BUY orders: quote asset balance locked.
+    For SELL orders: base asset balance locked.
+    """
+```
+
+<ParamField path="in_flight_orders" type="Dict[str, InFlightOrderBase]">
+  Dictionary of in-flight orders.
+</ParamField>
+
+<ResponseField name="return" type="Dict[str, Decimal]">
+  Dictionary of tokens and their balance locked in orders.
+</ResponseField>
+
+### order_filled_balances
+
+```python
+def order_filled_balances(self, starting_timestamp: float = 0) -> Dict[str, Decimal]:
+    """
+    Calculates total asset balance changes from filled orders since the timestamp.
+    """
+```
+
+<ParamField path="starting_timestamp" type="float" default="0">
+  The starting timestamp to filter order filled events.
+</ParamField>
+
+<ResponseField name="return" type="Dict[str, Decimal]">
+  Dictionary of tokens and their balance changes.
+</ResponseField>
+
+### estimate_fee_pct
+
+```python
+def estimate_fee_pct(self, is_maker: bool) -> Decimal:
+    """
+    Estimates the trading fee for maker or taker type of order.
+    """
+```
+
+<ParamField path="is_maker" type="bool">
+  Whether to get trading fee for maker (True) or taker (False) order.
+</ParamField>
+
+<ResponseField name="return" type="Decimal">
+  An estimated fee in percentage value.
+</ResponseField>
+
+## Lifecycle Methods
+
+### start
+
+```python
+def start(self, clock: Clock, timestamp: float):
+    """
+    Starts the connector with the given clock.
+    """
+```
+
+### tick
+
+```python
+def tick(self, timestamp: float):
+    """
+    Called automatically by the clock for each tick (1 second by default).
+    """
+```
+
+### stop_tracking_order
+
+```python
+def stop_tracking_order(self, order_id: str):
+    """
+    Stops tracking an in-flight order.
+    """
+```
+
+## Utility Methods
+
+### split_trading_pair
+
+```python
+@staticmethod
+def split_trading_pair(trading_pair: str) -> Tuple[str, str]:
+    """
+    Splits a trading pair into base and quote assets.
+    """
+```
+
+<ParamField path="trading_pair" type="str">
+  The trading pair to split (e.g., "BTC-USDT").
+</ParamField>
+
+<ResponseField name="return" type="Tuple[str, str]">
+  Tuple of (base_asset, quote_asset).
+</ResponseField>
+
+## Usage Example
+
+```python
+from hummingbot.connector.connector_base import ConnectorBase
+from decimal import Decimal
+from hummingbot.core.data_type.common import OrderType
+
+class MyExchangeConnector(ConnectorBase):
+    @property
+    def ready(self) -> bool:
+        return self._trading_pairs_ready and self._account_balances_ready
+        
+    @property
+    def status_dict(self) -> Dict[str, bool]:
+        return {
+            "trading_pairs_initialized": self._trading_pairs_ready,
+            "account_balances_initialized": self._account_balances_ready,
+        }
+        
+    def buy(self, trading_pair: str, amount: Decimal, 
+            order_type: OrderType, price: Decimal, **kwargs) -> str:
+        # Implement buy order logic
+        order_id = self._create_order(trading_pair, True, amount, order_type, price)
+        return order_id
+        
+    def sell(self, trading_pair: str, amount: Decimal,
+             order_type: OrderType, price: Decimal, **kwargs) -> str:
+        # Implement sell order logic
+        order_id = self._create_order(trading_pair, False, amount, order_type, price)
+        return order_id
+```
+
+## Market Events
+
+The connector emits the following market events:
+
+- `ReceivedAsset`
+- `BuyOrderCompleted`
+- `SellOrderCompleted`
+- `WithdrawAsset`
+- `OrderCancelled`
+- `OrderFilled`
+- `OrderExpired`
+- `OrderFailure`
+- `TransactionFailure`
+- `BuyOrderCreated`
+- `SellOrderCreated`
+- `FundingPaymentCompleted`
+- `RangePositionLiquidityAdded`
+- `RangePositionLiquidityRemoved`
+- `RangePositionUpdateFailure`

@@ -1,0 +1,322 @@
+---
+title: CLOB CEX Spot Connectors
+description: Centralized exchange connectors for spot trading with central limit order books
+keywords: ['CLOB', 'CEX', 'spot', 'centralized exchange', 'API', 'trading']
+---
+
+CLOB CEX Spot connectors enable trading on centralized exchanges with central limit order books for spot markets. These exchanges take custody of your funds and provide high liquidity, fast execution, and advanced trading features.
+
+## How CLOB CEX Spot Connectors Work
+
+Centralized spot exchange connectors integrate with exchange APIs to provide:
+
+<CardGroup cols={2}>
+  <Card title="Order Management" icon="list-check">
+    Place, cancel, and modify limit and market orders through standardized interfaces
+  </Card>
+  <Card title="Real-time Data" icon="chart-line">
+    WebSocket connections for live order book updates, trades, and account balances
+  </Card>
+  <Card title="Account Operations" icon="wallet">
+    Query balances, trading fees, and account information across exchanges
+  </Card>
+  <Card title="API Authentication" icon="key">
+    Secure API key management with encrypted local storage
+  </Card>
+</CardGroup>
+
+### Connection Requirements
+
+<Steps>
+  <Step title="Generate API keys">
+    Create API keys from your exchange account with these permissions:
+    - Read account balances
+    - Place orders
+    - Cancel orders
+    
+    <Warning>
+    Never enable withdrawal permissions on API keys used for trading bots.
+    </Warning>
+  </Step>
+  
+  <Step title="Configure in Hummingbot">
+    Use the connect command:
+    ```bash
+    connect [exchange_name]
+    ```
+    Enter your API key and secret when prompted.
+  </Step>
+  
+  <Step title="Verify connection">
+    Check your balance to confirm:
+    ```bash
+    balance
+    ```
+  </Step>
+</Steps>
+
+## Exchange Sponsors
+
+These centralized spot exchanges actively support Hummingbot through partnerships and fee discounts:
+
+<AccordionGroup>
+  <Accordion title="Binance" icon="building-columns">
+    **Connector ID**: `binance`
+    
+    The world's largest cryptocurrency exchange by trading volume.
+    
+    **Features:**
+    - Extensive trading pairs (600+ markets)
+    - Deep liquidity and tight spreads
+    - Low trading fees (0.1% maker/taker)
+    - Advanced order types
+    
+    **Discount**: 10% fee discount with Hummingbot referral link
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/binance/)
+  </Accordion>
+  
+  <Accordion title="BitMart" icon="building-columns">
+    **Connector ID**: `bitmart`
+    
+    Global cryptocurrency exchange with diverse trading pairs.
+    
+    **Features:**
+    - Wide selection of altcoins
+    - Competitive trading fees
+    - Spot and margin trading
+    
+    **Discount**: Sponsor partnership with referral link
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/bitmart/)
+  </Accordion>
+  
+  <Accordion title="Bitget" icon="building-columns">
+    **Connector ID**: `bitget`
+    
+    Leading cryptocurrency exchange with copy trading features.
+    
+    **Features:**
+    - Popular for derivatives and spot trading
+    - Copy trading capabilities
+    - Low latency API
+    
+    **Discount**: Sponsor partnership with referral link
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/bitget/)
+  </Accordion>
+  
+  <Accordion title="Gate.io" icon="building-columns">
+    **Connector ID**: `gate_io`
+    
+    Established exchange with extensive altcoin offerings.
+    
+    **Features:**
+    - 1,700+ trading pairs
+    - Advanced trading tools
+    - Multiple order types
+    - Startup project listings
+    
+    **Discount**: 20% fee discount with Hummingbot referral link
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/gate-io/)
+  </Accordion>
+  
+  <Accordion title="HTX (Huobi)" icon="building-columns">
+    **Connector ID**: `htx`
+    
+    Major exchange with strong presence in Asian markets.
+    
+    **Features:**
+    - Established since 2013
+    - Wide range of trading pairs
+    - Institutional-grade platform
+    
+    **Discount**: 20% fee discount with Hummingbot referral link
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/htx/)
+  </Accordion>
+  
+  <Accordion title="KuCoin" icon="building-columns">
+    **Connector ID**: `kucoin`
+    
+    People's exchange with diverse cryptocurrency offerings.
+    
+    **Features:**
+    - 700+ trading pairs
+    - Early access to new tokens
+    - Trading bot marketplace
+    - Low trading fees
+    
+    **Discount**: 20% fee discount with Hummingbot referral link
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/kucoin/)
+  </Accordion>
+  
+  <Accordion title="OKX" icon="building-columns">
+    **Connector ID**: `okx`
+    
+    Top-tier exchange with comprehensive trading products.
+    
+    **Features:**
+    - Advanced trading interface
+    - Deep liquidity
+    - Institutional services
+    - Multiple trading modes
+    
+    **Discount**: 20% fee discount with Hummingbot referral link
+    
+    [Exchange Documentation](https://hummingbot.org/exchanges/okx/)
+  </Accordion>
+</AccordionGroup>
+
+## Other Supported Exchanges
+
+The following spot exchanges are maintained through the Hummingbot Foundation governance process:
+
+<CardGroup cols={3}>
+  <Card title="AscendEx" icon="building">
+    **Connector ID**: `ascend_ex`
+    
+    DeFi-focused exchange platform
+    
+    [Docs](https://hummingbot.org/exchanges/ascendex/)
+  </Card>
+  
+  <Card title="BingX" icon="building">
+    **Connector ID**: `bing_x`
+    
+    Social trading exchange
+    
+    [Docs](https://hummingbot.org/exchanges/bing_x/)
+  </Card>
+  
+  <Card title="Bitrue" icon="building">
+    **Connector ID**: `bitrue`
+    
+    XRP Ledger integrated exchange
+    
+    [Docs](https://hummingbot.org/exchanges/bitrue/)
+  </Card>
+  
+  <Card title="Bitstamp" icon="building">
+    **Connector ID**: `bitstamp`
+    
+    Longest-running crypto exchange
+    
+    [Docs](https://hummingbot.org/exchanges/bitstamp/)
+  </Card>
+  
+  <Card title="BTC Markets" icon="building">
+    **Connector ID**: `btc_markets`
+    
+    Australian cryptocurrency exchange
+    
+    [Docs](https://hummingbot.org/exchanges/btc-markets/)
+  </Card>
+  
+  <Card title="Bybit" icon="building">
+    **Connector ID**: `bybit`
+    
+    Popular derivatives exchange
+    
+    [Docs](https://hummingbot.org/exchanges/bybit/)
+  </Card>
+  
+  <Card title="Coinbase" icon="building">
+    **Connector ID**: `coinbase_advanced_trade`
+    
+    Leading US cryptocurrency exchange
+    
+    [Docs](https://hummingbot.org/exchanges/coinbase/)
+  </Card>
+  
+  <Card title="Cube" icon="building">
+    **Connector ID**: `cube`
+    
+    Institutional trading platform
+    
+    [Docs](https://hummingbot.org/exchanges/cube/)
+  </Card>
+  
+  <Card title="Kraken" icon="building">
+    **Connector ID**: `kraken`
+    
+    Trusted US-based exchange
+    
+    [Docs](https://hummingbot.org/exchanges/kraken/)
+  </Card>
+  
+  <Card title="MEXC" icon="building">
+    **Connector ID**: `mexc`
+    
+    High-performance trading platform
+    
+    [Docs](https://hummingbot.org/exchanges/mexc/)
+  </Card>
+</CardGroup>
+
+## Supported Features
+
+CLOB CEX Spot connectors support the following trading features:
+
+| Feature | Support |
+|---------|--------|
+| Limit orders | Yes |
+| Market orders | Yes |
+| Stop-loss orders | Yes (exchange dependent) |
+| Order book data | Yes (WebSocket) |
+| Trade data | Yes (WebSocket) |
+| Balance updates | Yes |
+| Fee structure | Maker/taker fees |
+| Rate limiting | Exchange-specific |
+
+<Note>
+Specific features may vary by exchange. Check individual exchange documentation for detailed feature support.
+</Note>
+
+## Configuration Example
+
+Example configuration for a CLOB CEX spot connector:
+
+```yaml
+connector: binance
+market: BTC-USDT
+order_amount: 0.001
+order_refresh_time: 30
+```
+
+## Best Practices
+
+<Tip>
+**API Key Security**
+- Use API keys with minimal required permissions
+- Never share API keys or commit them to version control
+- Rotate API keys periodically
+- Monitor API usage for unusual activity
+</Tip>
+
+<Tip>
+**Trading Performance**
+- Choose exchanges with deep liquidity for your trading pairs
+- Consider maker/taker fee structures in your strategy
+- Monitor API rate limits to avoid connection issues
+- Test strategies with small amounts before scaling
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CLOB CEX Perpetual" icon="chart-line" href="/connectors/clob-cex-perpetual">
+    Explore perpetual futures connectors
+  </Card>
+  <Card title="Getting Started" icon="rocket" href="/installation">
+    Install Hummingbot and start trading
+  </Card>
+  <Card title="Strategies" icon="brain" href="/strategies">
+    Learn about trading strategies
+  </Card>
+  <Card title="Governance" icon="users" href="/governance">
+    Participate in connector governance
+  </Card>
+</CardGroup>

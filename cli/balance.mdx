@@ -1,0 +1,211 @@
+---
+title: balance
+description: View and manage exchange balances, set asset limits, and configure paper trading balances
+---
+
+## Overview
+
+The `balance` command displays your cryptocurrency balances across all connected exchanges and allows you to set limits on how much the bot can use. It also supports managing paper trading balances for testing strategies.
+
+## Basic Usage
+
+### View All Balances
+
+```bash
+balance
+```
+
+This displays balances for all connected exchanges, showing:
+- Asset name
+- Total balance
+- Value in your global token (default: USD)
+- Allocated percentage (how much is currently in use)
+
+**Example output:**
+```
+Updating balances, please wait...
+
+binance:
+    Asset    Total  Total (USD)  Allocated
+      BTC   0.5000        25000      45%
+      ETH  10.0000        20000      30%
+     USDT  50000.0        50000       0%
+
+  Total: USD 95000
+  Allocated: 32.63%
+
+Exchanges Total: USD 95000
+```
+
+## Asset Limits
+
+Asset limits allow you to restrict how much of each asset the bot can use for trading.
+
+### View Current Limits
+
+```bash
+balance limit
+```
+
+Displays all configured asset limits per exchange.
+
+### Set an Asset Limit
+
+```bash
+balance limit [EXCHANGE] [ASSET] [AMOUNT]
+```
+
+<ParamField path="EXCHANGE" type="string" required>
+  The exchange name (e.g., `binance`, `kucoin`)
+</ParamField>
+
+<ParamField path="ASSET" type="string" required>
+  The asset symbol (e.g., `BTC`, `ETH`, `USDT`)
+</ParamField>
+
+<ParamField path="AMOUNT" type="number" required>
+  Maximum amount the bot can use. Use a negative value to remove the limit.
+</ParamField>
+
+**Examples:**
+
+```bash
+# Limit BTC usage to 0.1 on Binance
+balance limit binance BTC 0.1
+
+# Limit USDT usage to 10000 on KuCoin
+balance limit kucoin USDT 10000
+
+# Remove BTC limit on Binance
+balance limit binance BTC -1
+```
+
+## Paper Trading Balances
+
+Paper trading mode allows you to test strategies without risking real funds. You can configure virtual balances for any asset.
+
+### View Paper Balances
+
+```bash
+balance paper
+```
+
+### Set Paper Balance
+
+```bash
+balance paper [ASSET] [AMOUNT]
+```
+
+<ParamField path="ASSET" type="string" required>
+  The asset symbol
+</ParamField>
+
+<ParamField path="AMOUNT" type="number" required>
+  The virtual balance amount
+</ParamField>
+
+**Examples:**
+
+```bash
+# Set paper balance for BTC
+balance paper BTC 1.0
+
+# Set paper balance for USDT
+balance paper USDT 100000
+```
+
+## Understanding Balance Display
+
+### Allocated Percentage
+
+The "Allocated" column shows what percentage of each asset is currently being used in active orders or positions. This helps you understand:
+- How much capital is actively trading
+- How much is available for new orders
+
+<Info>
+For CEX (centralized exchanges), only assets with non-zero balances are displayed. For DEX (decentralized exchanges via Gateway), all tracked tokens are shown, including zero balances.
+</Info>
+
+### Global Token Conversion
+
+Balances are converted to your configured global token (default USD) using the Rate Oracle. This provides a unified view of your total portfolio value across different assets and exchanges.
+
+To change the global token, use the [config](/cli/config) command:
+
+```bash
+config global_token_symbol
+```
+
+## Implementation Details
+
+The balance command is implemented in `/hummingbot/client/command/balance_command.py:25` and supports:
+
+- **Async balance fetching** with configurable timeout (default 60s)
+- **Rate oracle integration** for accurate cross-asset valuation
+- **Both CEX and DEX** connector support
+- **Persistent configuration** - limits and paper balances are saved to your config file
+
+## Common Use Cases
+
+### Risk Management
+
+Set limits to prevent the bot from using too much capital:
+
+```bash
+# Only allow bot to use 0.5 BTC maximum
+balance limit binance BTC 0.5
+
+# Limit quote currency exposure
+balance limit binance USDT 50000
+```
+
+### Testing Strategies
+
+Use paper trading to test without risk:
+
+```bash
+# Set up paper trading balances
+balance paper BTC 1.0
+balance paper USDT 50000
+balance paper ETH 10.0
+```
+
+### Portfolio Monitoring
+
+Regularly check balances to monitor bot performance:
+
+```bash
+# Quick balance check
+balance
+```
+
+<Warning>
+Balance updates require network requests to exchanges and may take several seconds to complete. If the request times out, check your network connection and exchange API status.
+</Warning>
+
+## Troubleshooting
+
+### Timeout Errors
+
+If you see timeout errors when fetching balances:
+
+1. Check your internet connection
+2. Verify the exchange is online and accessible
+3. Increase the timeout setting:
+   ```bash
+   config other_commands_timeout
+   ```
+
+### Incorrect Allocations
+
+If allocation percentages seem wrong:
+
+1. Ensure orders are properly tracked in the bot
+2. Stop and restart the bot to refresh state
+3. Check for any manual trades made outside the bot
+
+## Related Commands
+
+- [connect](/cli/connect) - Connect to exchanges before viewing balances
+- [config](/cli/config) - Configure global token and timeout settings
+- [status](/cli/status) - View detailed bot status including balances

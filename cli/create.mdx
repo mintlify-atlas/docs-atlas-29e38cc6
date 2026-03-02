@@ -1,0 +1,338 @@
+---
+title: create
+description: Create new strategy configurations for trading bots, scripts, and controllers
+---
+
+## Overview
+
+The `create` command guides you through creating a new strategy configuration. It supports three types of configurations:
+1. **Classic Strategies** - Built-in strategies like Pure Market Making, Cross-Exchange Market Making
+2. **Script Strategies** - Custom Python scripts (V2 architecture)
+3. **Controllers** - Modular trading logic components (V2 architecture)
+
+## Basic Usage
+
+### Create Classic Strategy
+
+```bash
+create
+```
+
+This starts an interactive wizard that:
+1. Prompts you to select a strategy type
+2. Asks for strategy-specific parameters
+3. Validates your configuration
+4. Saves to a YAML file
+
+**Example workflow:**
+```
+>>> create
+
+What is your market making strategy?
+>>> pure_market_making
+
+Import previous configs or create a new config file? (import/create)
+>>> create
+
+Please see https://docs.hummingbot.org/strategies/pure-market-making/
+while setting up these below configuration.
+
+Enter your maker spot connector >>>
+>>> binance
+
+Enter the token trading pair you would like to trade on binance >>>
+>>> BTC-USDT
+
+...
+```
+
+### Create Script Strategy (V2)
+
+```bash
+create --script [script_name]
+```
+
+<ParamField path="script_name" type="string" required>
+  Name of the script file (without .py extension) located in `scripts/`
+</ParamField>
+
+**Example:**
+```bash
+create --script my_custom_strategy
+```
+
+This will:
+1. Load the configuration class from your script
+2. Prompt for required parameters defined in the script's config
+3. Save configuration to `conf/scripts/` directory
+
+### Create Controller (V2)
+
+```bash
+create --controller [controller_name]
+```
+
+<ParamField path="controller_name" type="string" required>
+  Name of the controller in the controllers directory
+</ParamField>
+
+**Example:**
+```bash
+create --controller directional_trading
+```
+
+## Configuration Workflow
+
+<Steps>
+  <Step title="Select Strategy Type">
+    Choose from available strategies:
+    - pure_market_making
+    - cross_exchange_market_making
+    - amm_arb
+    - avellaneda_market_making
+    - And more...
+  </Step>
+  
+  <Step title="Configure Parameters">
+    Answer prompts for each required parameter:
+    ```
+    Enter your maker spot connector >>> binance
+    Enter the token trading pair >>> BTC-USDT
+    Enter quantity per order >>> 0.001
+    Enter bid spread (in percentage) >>> 0.5
+    Enter ask spread (in percentage) >>> 0.5
+    ```
+  </Step>
+  
+  <Step title="Name Your Config">
+    Choose a filename for your configuration:
+    ```
+    Enter a new file name for your configuration >>> my_btc_strategy.yml
+    ```
+  </Step>
+  
+  <Step title="Validation">
+    Hummingbot performs status checks:
+    ```
+    Status check complete. Strategy 'pure_market_making' created successfully.
+    Enter "start" to start market making.
+    ```
+  </Step>
+</Steps>
+
+## Strategy-Specific Parameters
+
+### Pure Market Making
+
+**Required:**
+- `exchange` - The exchange connector
+- `market` - Trading pair (e.g., BTC-USDT)
+- `bid_spread` - Percentage below mid price for buy orders
+- `ask_spread` - Percentage above mid price for sell orders
+- `order_amount` - Size of each order
+
+**Optional:**
+- `order_levels` - Number of orders per side
+- `order_level_spread` - Spacing between levels
+- `inventory_skew_enabled` - Auto-balance inventory
+- `filled_order_delay` - Delay before placing new order
+
+### Cross-Exchange Market Making
+
+**Required:**
+- `maker_market` - Exchange to place orders
+- `taker_market` - Exchange to hedge on
+- `maker_market_trading_pair` - Trading pair on maker
+- `taker_market_trading_pair` - Trading pair on taker
+- `order_amount` - Order size
+- `min_profitability` - Minimum profit percentage
+
+### AMM Arbitrage
+
+**Required:**
+- `connector_1` - First exchange (typically DEX)
+- `market_1` - Trading pair on first exchange
+- `connector_2` - Second exchange (typically CEX)
+- `market_2` - Trading pair on second exchange
+- `order_amount` - Size to arbitrage
+- `min_profitability` - Minimum profit to execute
+
+## Special Configuration Features
+
+### Asset Ratio Maintenance
+
+When configuring `inventory_target_base_pct`, Hummingbot can automatically calculate your current ratio:
+
+```
+On binance, you have 0.5000 BTC and 25000.0000 USDT. 
+By market value, your current inventory split is 50.0% BTC and 50.0% USDT.
+Would you like to keep this ratio? (Yes/No) >>>
+```
+
+### Inventory Price Tracking
+
+Set your asset acquisition cost for accurate P&L calculations:
+
+```
+config inventory_price
+# Prompt: "On binance, you have 0.5000 BTC. What was the price for this amount in USDT? >>>"
+```
+
+## File Naming
+
+Configuration files are saved to:
+
+- **Classic strategies**: `conf/strategies/[filename].yml`
+- **Scripts**: `conf/scripts/[filename].yml`
+- **Controllers**: `conf/controllers/[filename].yml`
+
+**Naming conventions:**
+- Use descriptive names: `btc_mm_tight_spread.yml`
+- Include key parameters: `eth_usdt_1pct_spread.yml`
+- Date-based: `strategy_2024_03_02.yml`
+
+<Info>
+If a file with the same name exists, Hummingbot will prompt you to choose a different name.
+</Info>
+
+## Implementation Details
+
+The create command is implemented in `/hummingbot/client/command/create_command.py:51` and provides:
+
+- **Three creation modes**: Classic, Script, and Controller
+- **Interactive prompting** with validation
+- **Default value suggestions** based on strategy type
+- **YAML configuration export** with field ordering
+- **Post-creation validation** via status checks
+- **Automatic connector initialization** when needed
+
+## V2 Architecture (Scripts & Controllers)
+
+The V2 architecture uses a different configuration approach:
+
+### Script Strategies
+
+**Structure:**
+```python
+class MyStrategyConfig(StrategyV2ConfigBase):
+    script_file_name: str = "my_strategy.py"
+    exchange: str
+    trading_pair: str
+    order_amount: Decimal
+```
+
+**Creation:**
+```bash
+create --script my_strategy
+```
+
+### Controllers
+
+**Structure:**
+```python
+class DirectionalTradingConfig(ControllerConfigBase):
+    controller_name: str = "directional_trading"
+    candles_config: List[CandlesConfig]
+    leverage: int = 1
+```
+
+**Creation:**
+```bash
+create --controller directional_trading
+```
+
+## Common Use Cases
+
+### Market Making Setup
+
+```bash
+create
+# Select: pure_market_making
+# Configure tight spreads for high-volume pairs
+```
+
+### Arbitrage Bot
+
+```bash
+create
+# Select: amm_arb
+# Configure DEX-CEX arbitrage
+```
+
+### Custom Strategy
+
+```bash
+# First, create your script in scripts/my_strategy.py
+create --script my_strategy
+# Configure parameters defined in your script
+```
+
+### Multiple Configs
+
+Create variations for testing:
+
+```bash
+create
+# File: btc_conservative.yml (0.5% spread)
+
+create  
+# File: btc_aggressive.yml (0.2% spread)
+
+create
+# File: btc_wide.yml (1.0% spread)
+```
+
+## Troubleshooting
+
+### Missing Strategy Module
+
+If you see "Invalid strategy" error:
+
+1. Verify the strategy name is correct
+2. Check if the strategy is installed
+3. For scripts, ensure the file exists in `scripts/` directory
+
+### Configuration Validation Errors
+
+If validation fails during creation:
+
+1. Check exchange connectivity (`connect` command)
+2. Verify trading pair exists on the exchange
+3. Ensure numeric values are in valid ranges
+4. Confirm you have sufficient balance
+
+### Timeout During Status Check
+
+If status check times out:
+
+1. Check internet connection
+2. Verify exchanges are online
+3. Increase timeout:
+   ```bash
+   config create_command_timeout 60
+   ```
+
+### Script/Controller Not Found
+
+For V2 configurations:
+
+1. Ensure script exists: `scripts/[name].py`
+2. Verify controller exists in controllers directory
+3. Check that config class is properly defined
+4. Restart Hummingbot to reload modules
+
+## Configuration Templates
+
+Hummingbot includes templates for all strategies in:
+```
+hummingbot/templates/conf_[strategy]_[version].yml
+```
+
+These templates show all available parameters with descriptions.
+
+## Related Commands
+
+- [import](/cli/import) - Load existing configuration
+- [config](/cli/config) - Modify configuration after creation  
+- [start](/cli/start-stop) - Start the created strategy
+- [status](/cli/status) - Verify configuration is valid

@@ -1,0 +1,350 @@
+---
+title: Market Data
+description: Understanding market data structures in Hummingbot
+---
+
+## Overview
+
+Hummingbot processes real-time market data from exchanges to make trading decisions. The core data structures include order books, trades, and candles (OHLCV data).
+
+## Order Book Data
+
+Order books represent the current state of buy and sell orders on an exchange.
+
+### Order Book Structure
+
+The `OrderBook` class maintains bid and ask sides using C++ data structures for performance:
+
+```python
+class OrderBook(PubSub):
+    def __init__(self, dex=False):
+        super().__init__()
+        self._snapshot_uid = 0
+        self._last_diff_uid = 0
+        self._best_bid = self._best_ask = float("NaN")
+        self._last_trade_price = float("NaN")
+        self._dex = dex  # DEX order books handle overlaps differently
+```
+
+Source: `hummingbot/core/data_type/order_book.pyx:39-57`.
+
+### Order Book Updates
+
+Order books receive updates via WebSocket messages:
+
+```python
+class OrderBookMessageType(Enum):
+    SNAPSHOT = 1  # Full order book snapshot
+    DIFF = 2      # Incremental updates (changes only)
+    TRADE = 3     # Trade execution events
+
+class OrderBookMessage(namedtuple("_OrderBookMessage", "type, content, timestamp")):
+    type: OrderBookMessageType
+    content: Dict[str, any]
+    timestamp: float
+    
+    @property
+    def bids(self) -> List[OrderBookRow]:
+        return [
+            OrderBookRow(float(price), float(amount), self.update_id) 
+            for price, amount, *trash in self.content["bids"]
+        ]
+    
+    @property
+    def asks(self) -> List[OrderBookRow]:
+        return [
+            OrderBookRow(float(price), float(amount), self.update_id) 
+            for price, amount, *trash in self.content["asks"]
+        ]
+```
+
+Source: `hummingbot/core/data_type/order_book_message.py:9-65`.
+
+### Order Book Rows
+
+Individual price levels in the order book:
+
+```python
+class OrderBookRow(namedtuple("_OrderBookRow", "price, amount, update_id")):
+    """
+    Used to apply changes to OrderBook. 
+    OrderBook classes use float internally for better performance over Decimal.
+    """
+    price: float
+    amount: float
+    update_id: int
+
+class ClientOrderBookRow(namedtuple("_OrderBookRow", "price, amount, update_id")):
+    """
+    Used in market classes where OrderBook values are converted to Decimal.
+    """
+    price: Decimal
+    amount: Decimal
+    update_id: int
+```
+
+Source: `hummingbot/core/data_type/order_book_row.py:7-23`.
+
+### Example: Accessing Order Book
+
+```python
+# Get order book from connector
+connector = self.connectors["binance"]
+order_book = connector.get_order_book("BTC-USDT")
+
+# Get best bid and ask
+best_bid = order_book.get_price(False)  # False = bid side
+best_ask = order_book.get_price(True)   # True = ask side
+
+# Calculate mid price
+mid_price = (best_bid + best_ask) / 2
+
+# Get order book depth
+bid_volume = order_book.get_volume_for_price(False, best_bid * Decimal("0.99"))
+ask_volume = order_book.get_volume_for_price(True, best_ask * Decimal("1.01"))
+```
+
+### Exchange-Specific Order Book Messages
+
+Each exchange connector implements methods to parse exchange-specific formats:
+
+```python
+class BinanceOrderBook(OrderBook):
+    @classmethod
+    def snapshot_message_from_exchange(
+        cls, msg: Dict[str, any], timestamp: float, metadata: Optional[Dict] = None
+    ) -> OrderBookMessage:
+        return OrderBookMessage(OrderBookMessageType.SNAPSHOT, {
+            "trading_pair": msg["trading_pair"],
+            "update_id": msg["lastUpdateId"],
+            "bids": msg["bids"],
+            "asks": msg["asks"]
+        }, timestamp=timestamp)
+    
+    @classmethod
+    def diff_message_from_exchange(
+        cls, msg: Dict[str, any], timestamp: Optional[float] = None, metadata: Optional[Dict] = None
+    ) -> OrderBookMessage:
+        return OrderBookMessage(OrderBookMessageType.DIFF, {
+            "trading_pair": msg["trading_pair"],
+            "first_update_id": msg["U"],
+            "update_id": msg["u"],
+            "bids": msg["b"],
+            "asks": msg["a"]
+        }, timestamp=timestamp)
+```
+
+Source: `hummingbot/connector/exchange/binance/binance_order_book.py:8-51`.
+
+## Trade Data
+
+Trade data represents executed transactions.
+
+### Trade Structure
+
+```python
+class Trade(namedtuple("_Trade", "trading_pair, side, price, amount, order_type, market, timestamp, trade_fee")):
+    trading_pair: str
+    side: TradeType        # BUY or SELL
+    price: float
+    amount: float
+    order_type: OrderType  # MARKET, LIMIT, etc.
+    market: str            # Connector name
+    timestamp: float
+    trade_fee: TradeFeeBase
+    
+    @property
+    def trade_type(self):
+        return self.side.name
+```
+
+Source: `hummingbot/core/data_type/trade.py:13-58`.
+
+### Example: Processing Trades
+
+```python
+from hummingbot.core.data_type.trade import Trade
+from hummingbot.core.data_type.common import TradeType, OrderType
+
+# Create a trade record
+trade = Trade(
+    trading_pair="BTC-USDT",
+    side=TradeType.BUY,
+    price=50000.0,
+    amount=0.1,
+    order_type=OrderType.LIMIT,
+    market="binance",
+    timestamp=time.time(),
+    trade_fee=trade_fee_object
+)
+
+# Convert trades to pandas DataFrame
+trades_list = [trade1, trade2, trade3]
+df = Trade.to_pandas(trades_list)
+```
+
+## Candles (OHLCV) Data
+
+Candles represent price action over time intervals, essential for technical analysis and V2 strategies.
+
+### Candles Configuration
+
+```python
+class CandlesConfig(BaseModel):
+    """
+    Configuration for candle data feed.
+    """
+    connector: str
+    trading_pair: str
+    interval: str = "1m"     # 1m, 3m, 5m, 15m, 1h, 4h, 1d, etc.
+    max_records: int = 500   # Number of candles to maintain
+```
+
+Source: `hummingbot/data_feed/candles_feed/data_types.py:4-16`.
+
+### Using Candles in V2 Strategies
+
+V2 controllers use the `MarketDataProvider` to access candle data:
+
+```python
+from hummingbot.data_feed.candles_feed.data_types import CandlesConfig
+
+class BollingerV1Controller(DirectionalTradingControllerBase):
+    def get_candles_config(self) -> List[CandlesConfig]:
+        return [CandlesConfig(
+            connector=self.config.candles_connector,
+            trading_pair=self.config.candles_trading_pair,
+            interval=self.config.interval,
+            max_records=self.max_records
+        )]
+    
+    async def update_processed_data(self):
+        # Get candles as DataFrame
+        df = self.market_data_provider.get_candles_df(
+            connector_name=self.config.candles_connector,
+            trading_pair=self.config.candles_trading_pair,
+            interval=self.config.interval,
+            max_records=self.max_records
+        )
+        
+        # Apply technical indicators
+        df.ta.bbands(length=self.config.bb_length, std=self.config.bb_std, append=True)
+        
+        # Generate trading signal
+        bbp = df[f"BBP_{self.config.bb_length}_{self.config.bb_std}_{self.config.bb_std}"]
+        long_condition = bbp < self.config.bb_long_threshold
+        short_condition = bbp > self.config.bb_short_threshold
+        
+        df["signal"] = 0
+        df.loc[long_condition, "signal"] = 1
+        df.loc[short_condition, "signal"] = -1
+        
+        self.processed_data["signal"] = df["signal"].iloc[-1]
+```
+
+Source: `controllers/directional_trading/bollinger_v1.py:59-87`.
+
+### Candle Data Structure
+
+Candles are typically represented as pandas DataFrames with columns:
+
+| Column | Description |
+|--------|-------------|
+| `timestamp` | Unix timestamp (milliseconds) |
+| `open` | Opening price |
+| `high` | Highest price in interval |
+| `low` | Lowest price in interval |
+| `close` | Closing price |
+| `volume` | Trading volume |
+| `quote_asset_volume` | Volume in quote asset |
+| `n_trades` | Number of trades (optional) |
+
+### Example: Historical Candles
+
+```python
+from hummingbot.data_feed.candles_feed.data_types import HistoricalCandlesConfig
+
+# Fetch historical candles
+config = HistoricalCandlesConfig(
+    connector_name="binance",
+    trading_pair="BTC-USDT",
+    interval="1h",
+    start_time=1640000000000,  # Unix timestamp in milliseconds
+    end_time=1640100000000
+)
+
+# Use in backtesting or analysis
+historical_candles = await candles_feed.get_historical_candles(config)
+```
+
+Source: `hummingbot/data_feed/candles_feed/data_types.py:19-25`.
+
+## Market Data Provider
+
+The `MarketDataProvider` aggregates order book, trade, and candle data for V2 strategies:
+
+```python
+from hummingbot.data_feed.market_data_provider import MarketDataProvider
+
+class MyController(ControllerBase):
+    def __init__(self, config, market_data_provider: MarketDataProvider):
+        self.market_data_provider = market_data_provider
+    
+    async def update_processed_data(self):
+        # Get candles
+        df = self.market_data_provider.get_candles_df(
+            connector_name="binance",
+            trading_pair="BTC-USDT",
+            interval="5m",
+            max_records=100
+        )
+        
+        # Get current price from order book
+        order_book = self.market_data_provider.get_order_book(
+            connector_name="binance",
+            trading_pair="BTC-USDT"
+        )
+        mid_price = (order_book.best_bid + order_book.best_ask) / 2
+```
+
+## Price Types
+
+Strategies can reference different price types:
+
+```python
+class PriceType(Enum):
+    MidPrice = 1         # (best_bid + best_ask) / 2
+    BestBid = 2          # Highest buy order
+    BestAsk = 3          # Lowest sell order
+    LastTrade = 4        # Last executed trade price
+    LastOwnTrade = 5     # Last trade from this strategy
+    InventoryCost = 6    # Average cost of inventory
+    Custom = 7           # User-defined price
+```
+
+Source: `hummingbot/core/data_type/common.py:52-59`.
+
+## Performance Considerations
+
+<Tip>
+**Order Book Performance:**
+- Order books use C++ data structures for speed
+- Internal storage uses `float` for performance
+- Convert to `Decimal` only when needed for precision
+
+**Candle Data:**
+- Keep `max_records` reasonable (100-500 candles)
+- Cache indicator calculations when possible
+- Use pandas vectorized operations for technical indicators
+
+**Real-time Updates:**
+- Order books update on every WebSocket message
+- Candles update at interval boundaries
+- Trades are processed as they occur
+</Tip>
+
+## Related Concepts
+
+- [Connectors](/concepts/connectors) - How market data is fetched from exchanges
+- [Strategies](/concepts/strategies) - Using market data in trading strategies
+- [Order Types](/concepts/order-types) - Executing orders based on market data

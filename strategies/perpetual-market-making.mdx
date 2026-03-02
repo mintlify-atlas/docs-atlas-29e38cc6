@@ -1,0 +1,551 @@
+---
+title: Perpetual Market Making
+description: Market making strategy for perpetual futures contracts with leverage
+---
+
+## Overview
+
+Perpetual Market Making applies market making strategies to perpetual futures markets, allowing traders to use leverage while providing liquidity. This strategy extends pure market making concepts to derivatives markets with position management and profit-taking features.
+
+## How It Works
+
+1. **Place Leveraged Orders**: Creates bid and ask orders on perpetual markets
+2. **Monitor Positions**: Tracks long and short positions separately
+3. **Profit Taking**: Automatically places opposite orders to reduce positions
+4. **Stop Loss**: Protects against adverse price movements
+5. **Refresh Orders**: Updates orders based on market conditions
+
+```python
+# Position-aware order placement
+if position_mode == "One-way":
+    net_position = long_position - short_position
+    adjust_orders_for_position(net_position)
+else:  # Hedge mode
+    manage_long_and_short_separately()
+```
+
+## When to Use
+
+<CardGroup cols={2}>
+  <Card title="Best For" icon="check">
+    - Perpetual futures markets with funding rates
+    - Leveraged liquidity provision
+    - Traders comfortable with derivatives
+    - Markets with position-based incentives
+  </Card>
+  
+  <Card title="Avoid When" icon="xmark">
+    - Unfamiliar with leverage mechanics
+    - Exchange has high funding rates
+    - Extremely volatile markets
+    - Insufficient collateral for liquidation risk
+  </Card>
+</CardGroup>
+
+## Core Configuration Parameters
+
+### Derivative Setup
+
+<ParamField path="derivative" type="string" required>
+  The derivative exchange connector
+  
+  **Examples**: `binance_perpetual`, `bybit_perpetual`, `dydx_perpetual`
+</ParamField>
+
+<ParamField path="market" type="string" required>
+  Perpetual trading pair in BASE-QUOTE format
+  
+  **Example**: `BTC-USDT` (for BTC-USDT perpetual contract)
+</ParamField>
+
+<ParamField path="leverage" type="int" required>
+  Leverage multiplier for positions
+  
+  **Example**: `10` for 10x leverage
+  
+  **Range**: Varies by exchange (Binance supports up to 75x for most pairs)
+  
+  <Warning>
+  Higher leverage increases liquidation risk. Start with 2-5x leverage.
+  </Warning>
+</ParamField>
+
+<ParamField path="position_mode" type="string" default="One-way">
+  Position management mode
+  
+  **Options**:
+  - `One-way`: Net position (long and short offset each other)
+  - `Hedge`: Separate long and short positions
+  
+  <Info>
+  Hedge mode allows simultaneous long and short positions, useful for complex strategies.
+  </Info>
+</ParamField>
+
+### Spread Configuration
+
+<ParamField path="bid_spread" type="decimal" required>
+  Distance from mid-price for bid orders. Enter `1` for 1%.
+  
+  **Example**: `0.1` places bids 0.1% below mid-price
+</ParamField>
+
+<ParamField path="ask_spread" type="decimal" required>
+  Distance from mid-price for ask orders. Enter `1` for 1%.
+  
+  **Example**: `0.1` places asks 0.1% above mid-price
+</ParamField>
+
+<ParamField path="minimum_spread" type="decimal" default="-100">
+  Minimum spread before automatically canceling orders. Enter `1` for 1%.
+  
+  **Range**: -100% to 100%
+  
+  **Example**: `0.05` cancels orders if spread drops below 0.05%
+</ParamField>
+
+### Order Management
+
+<ParamField path="order_amount" type="decimal" required>
+  Order size in base asset (contracts)
+  
+  **Example**: `0.01` for 0.01 BTC worth of contracts
+  
+  With leverage, actual exposure = order_amount * leverage
+</ParamField>
+
+<ParamField path="order_refresh_time" type="float" required>
+  Frequency in seconds to refresh orders
+  
+  **Example**: `30.0` refreshes every 30 seconds
+</ParamField>
+
+<ParamField path="order_refresh_tolerance_pct" type="decimal" default="0">
+  Minimum price change to trigger refresh. Enter `1` for 1%.
+  
+  **Range**: -10% to 10%
+</ParamField>
+
+### Multi-Level Orders
+
+<ParamField path="order_levels" type="int" default="1">
+  Number of orders per side
+  
+  **Example**: `3` creates 3 buy and 3 sell orders
+</ParamField>
+
+<ParamField path="order_level_spread" type="decimal" default="1.0">
+  Spread increment between levels. Enter `1` for 1%.
+  
+  Required if `order_levels > 1`
+</ParamField>
+
+<ParamField path="order_level_amount" type="decimal" default="0">
+  Amount increase/decrease per level
+  
+  **Example**: `0.005` increases each level by 0.005 BTC
+</ParamField>
+
+### Profit Taking
+
+<ParamField path="long_profit_taking_spread" type="decimal" default="0">
+  Spread from long position entry price to place profit-taking sell orders. Enter `1` for 1%.
+  
+  **Example**: `2.0` places sell order 2% above long entry price
+  
+  **Range**: 0% to 100%
+</ParamField>
+
+<ParamField path="short_profit_taking_spread" type="decimal" default="0">
+  Spread from short position entry price to place profit-taking buy orders. Enter `1` for 1%.
+  
+  **Example**: `2.0` places buy order 2% below short entry price
+  
+  **Range**: 0% to 100%
+</ParamField>
+
+### Stop Loss
+
+<ParamField path="stop_loss_spread" type="decimal" default="0">
+  Spread from entry price to place stop loss orders. Enter `1` for 1%.
+  
+  **Example**: `5.0` places stop loss 5% away from entry
+  
+  **Range**: 0% to 101%
+  
+  <Note>
+  Stop loss triggers market orders in the opposite direction to close positions.
+  </Note>
+</ParamField>
+
+<ParamField path="time_between_stop_loss_orders" type="float" default="60">
+  Seconds before refreshing unfilled stop loss orders
+  
+  **Example**: `120` refreshes stop loss every 2 minutes if not executed
+</ParamField>
+
+<ParamField path="stop_loss_slippage_buffer" type="decimal" default="0.5">
+  Additional slippage buffer for stop loss orders. Enter `1` for 1%.
+  
+  Ensures stop loss orders execute even in volatile conditions.
+</ParamField>
+
+### Price Sources
+
+<ParamField path="price_source" type="string" default="current_market">
+  Price reference for order placement
+  
+  **Options**:
+  - `current_market`: Use current derivative mid-price
+  - `external_market`: Use another exchange's price
+  - `custom_api`: Use custom API endpoint
+</ParamField>
+
+<ParamField path="price_type" type="string" default="mid_price">
+  Type of price to use
+  
+  **Options**:
+  - `mid_price`: Average of best bid and ask
+  - `last_price`: Last traded price
+  - `last_own_trade_price`: Your last trade price
+  - `best_bid`: Top bid price
+  - `best_ask`: Top ask price
+</ParamField>
+
+<ParamField path="price_source_derivative" type="string">
+  External exchange/derivative for price reference
+  
+  Required when `price_source=external_market`
+</ParamField>
+
+<ParamField path="price_source_market" type="string">
+  Trading pair on external source
+</ParamField>
+
+### Advanced Features
+
+<ParamField path="price_ceiling" type="decimal" default="-1">
+  Price above which only sell orders are placed. Use `-1` to disable.
+</ParamField>
+
+<ParamField path="price_floor" type="decimal" default="-1">
+  Price below which only buy orders are placed. Use `-1` to disable.
+</ParamField>
+
+<ParamField path="order_optimization_enabled" type="bool" default="false">
+  Enable best bid/ask jumping (order book top positioning)
+</ParamField>
+
+<ParamField path="filled_order_delay" type="float" default="60">
+  Delay in seconds after order fill before placing new orders
+</ParamField>
+
+## Example Configurations
+
+### Conservative Market Making
+
+```yaml
+strategy: perpetual_market_making
+derivative: binance_perpetual
+market: ETH-USDT
+leverage: 3
+position_mode: One-way
+bid_spread: 0.1
+ask_spread: 0.1
+order_amount: 0.1
+order_refresh_time: 30.0
+long_profit_taking_spread: 1.0
+short_profit_taking_spread: 1.0
+stop_loss_spread: 3.0
+stop_loss_slippage_buffer: 0.5
+```
+
+Features:
+- Moderate 3x leverage
+- Conservative spreads (0.1%)
+- Profit taking at 1%
+- Stop loss at 3%
+- One-way position mode
+
+### Aggressive Multi-Level
+
+```yaml
+strategy: perpetual_market_making
+derivative: bybit_perpetual
+market: BTC-USDT
+leverage: 10
+position_mode: Hedge
+bid_spread: 0.05
+ask_spread: 0.05
+order_amount: 0.01
+order_levels: 5
+order_level_spread: 0.05
+order_level_amount: 0.005
+order_refresh_time: 15.0
+long_profit_taking_spread: 0.5
+short_profit_taking_spread: 0.5
+stop_loss_spread: 2.0
+order_optimization_enabled: true
+```
+
+Optimized for:
+- High 10x leverage
+- Tight spreads (0.05%)
+- 5 order levels
+- Hedge mode for complex positions
+- Quick profit taking (0.5%)
+- Order optimization enabled
+
+### Price Source from Spot
+
+```yaml
+strategy: perpetual_market_making
+derivative: binance_perpetual
+market: SOL-USDT
+leverage: 5
+position_mode: One-way
+bid_spread: 0.2
+ask_spread: 0.2
+order_amount: 10
+order_refresh_time: 20.0
+price_source: external_market
+price_type: mid_price
+price_source_derivative: binance
+price_source_market: SOL-USDT
+long_profit_taking_spread: 1.5
+short_profit_taking_spread: 1.5
+stop_loss_spread: 4.0
+```
+
+Uses spot market price to detect funding arbitrage opportunities.
+
+## Position Management
+
+### One-Way Mode
+
+```python
+# Net position calculation
+net_position = long_contracts - short_contracts
+
+if net_position > 0:
+    # Net long position
+    place_profit_taking_sell_orders()
+elif net_position < 0:
+    # Net short position
+    place_profit_taking_buy_orders()
+```
+
+**Benefits**:
+- Simpler position tracking
+- Natural hedging of long/short
+- Lower margin requirements
+
+### Hedge Mode
+
+```python
+# Separate position tracking
+if long_position > 0:
+    place_long_profit_taking_orders()
+    place_long_stop_loss()
+
+if short_position > 0:
+    place_short_profit_taking_orders()
+    place_short_stop_loss()
+```
+
+**Benefits**:
+- Simultaneous long and short
+- Independent position management
+- Advanced arbitrage strategies
+
+## Leverage and Risk
+
+### Liquidation Price Calculation
+
+```python
+# Approximate liquidation calculation
+entry_price = 50000  # USD
+leverage = 10
+margin_ratio = 0.01  # 1% maintenance margin
+
+# Long position
+liquidation_long = entry_price * (1 - 1/leverage + margin_ratio)
+# = 50000 * (1 - 0.1 + 0.01) = 45500 USD
+
+# Short position
+liquidation_short = entry_price * (1 + 1/leverage - margin_ratio)
+# = 50000 * (1 + 0.1 - 0.01) = 54500 USD
+```
+
+### Recommended Leverage by Experience
+
+| Experience Level | Recommended Leverage | Risk Level |
+|------------------|----------------------|------------|
+| Beginner | 2-3x | Low |
+| Intermediate | 3-5x | Medium |
+| Advanced | 5-10x | High |
+| Expert | 10-20x | Very High |
+
+<Warning>
+Never use maximum available leverage. Maintain buffer for market volatility.
+</Warning>
+
+## Funding Rate Considerations
+
+<Info>
+Perpetual contracts charge/pay funding rates every 8 hours. Consider funding rates when market making:
+
+- **Positive Funding**: Longs pay shorts (favor short positions)
+- **Negative Funding**: Shorts pay longs (favor long positions)
+</Info>
+
+### Checking Funding Rates
+
+```bash
+# In Hummingbot
+status --funding_rate
+```
+
+Adjust inventory target based on funding:
+
+```yaml
+# High positive funding (longs pay shorts)
+long_profit_taking_spread: 0.5   # Take long profits quickly
+short_profit_taking_spread: 2.0  # Hold short positions longer
+
+# High negative funding (shorts pay longs)
+long_profit_taking_spread: 2.0   # Hold long positions
+short_profit_taking_spread: 0.5  # Take short profits quickly
+```
+
+## Tips for Success
+
+<AccordionGroup>
+  <Accordion title="Start with Low Leverage">
+    Begin with 2-3x leverage regardless of exchange limits. Increase gradually as you gain experience:
+    
+    ```yaml
+    leverage: 3  # Start here
+    # After 1 month profitable → 5
+    # After 3 months profitable → 7-10
+    ```
+  </Accordion>
+  
+  <Accordion title="Always Use Stop Loss">
+    Set stop loss at 2-5x your normal spread to prevent catastrophic losses:
+    
+    ```yaml
+    bid_spread: 0.1
+    ask_spread: 0.1
+    stop_loss_spread: 3.0  # 30x the spread
+    ```
+  </Accordion>
+  
+  <Accordion title="Monitor Margin Ratio">
+    Keep margin ratio above 20% to avoid liquidation:
+    
+    ```bash
+    # Check margin in Hummingbot
+    balance --derivative binance_perpetual
+    ```
+    
+    If margin < 30%, reduce position size or add collateral.
+  </Accordion>
+  
+  <Accordion title="Account for Funding Costs">
+    Calculate break-even including funding:
+    
+    ```python
+    daily_funding_cost = position_size * funding_rate * 3
+    min_daily_profit_target = daily_funding_cost * 1.5
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Risk Management
+
+<Warning>
+**Critical Risks**:
+- **Liquidation Risk**: Leverage amplifies losses; positions can be liquidated
+- **Funding Risk**: Negative funding rates reduce profitability
+- **Volatility Risk**: Sudden moves can trigger stop losses
+- **Exchange Risk**: Derivatives exchanges may have outages during volatility
+</Warning>
+
+### Risk Mitigation Checklist
+
+- [ ] Set `stop_loss_spread` on all strategies
+- [ ] Use leverage ≤ 5x for most markets
+- [ ] Maintain margin ratio > 30%
+- [ ] Monitor funding rates 3x daily
+- [ ] Set `price_ceiling` and `price_floor` for range-bound trading
+- [ ] Enable `order_optimization` during high volatility
+- [ ] Keep 50% capital in reserve for margin calls
+
+## Performance Optimization
+
+### Order Placement Strategy
+
+<Tabs>
+  <Tab title="Tight Spreads (Competitive)">
+    ```yaml
+    bid_spread: 0.02
+    ask_spread: 0.02
+    order_levels: 3
+    order_optimization_enabled: true
+    filled_order_delay: 5
+    ```
+    
+    Best for: High liquidity markets, competitive market making
+  </Tab>
+  
+  <Tab title="Wide Spreads (Safe)">
+    ```yaml
+    bid_spread: 0.3
+    ask_spread: 0.3
+    order_levels: 5
+    order_level_spread: 0.1
+    filled_order_delay: 60
+    ```
+    
+    Best for: Volatile markets, risk-averse traders
+  </Tab>
+  
+  <Tab title="Balanced">
+    ```yaml
+    bid_spread: 0.1
+    ask_spread: 0.1
+    order_levels: 3
+    order_level_spread: 0.08
+    order_optimization_enabled: false
+    filled_order_delay: 30
+    ```
+    
+    Best for: Most perpetual markets
+  </Tab>
+</Tabs>
+
+## Comparison with Spot Market Making
+
+| Feature | Perpetual MM | Spot MM |
+|---------|--------------|----------|
+| Leverage | Yes (2-100x) | No |
+| Funding Costs | Yes (every 8h) | No |
+| Profit Taking | Built-in | Manual |
+| Stop Loss | Built-in | External |
+| Position Modes | One-way/Hedge | N/A |
+| Liquidation Risk | Yes | No |
+| Capital Efficiency | High | Lower |
+
+## Source Code Reference
+
+Configuration: `/source/hummingbot/strategy/perpetual_market_making/perpetual_market_making_config_map.py:106`
+
+Strategy Implementation: `/source/hummingbot/strategy/perpetual_market_making/perpetual_market_making.py`
+
+Order Tracker: `/source/hummingbot/strategy/perpetual_market_making/perpetual_market_making_order_tracker.py`
+
+## Related Strategies
+
+- [Pure Market Making](/strategies/pure-market-making): Spot market equivalent
+- [Spot Perpetual Arbitrage](/strategies/spot-perpetual-arbitrage): Arbitrage between spot and perpetual

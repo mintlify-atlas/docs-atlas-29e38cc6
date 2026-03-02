@@ -1,0 +1,705 @@
+---
+title: Custom Scripts
+description: Build simple trading strategies with minimal code
+---
+
+## Overview
+
+Custom scripts are the easiest way to create trading strategies in Hummingbot. They extend `StrategyV2Base` and provide direct control over trading logic without the complexity of controllers and executors.
+
+<Info>
+Scripts are perfect for beginners, prototyping, and simple strategies. For complex multi-strategy systems, consider the [V2 Framework](/development/strategy-v2).
+</Info>
+
+## When to Use Scripts
+
+<CardGroup cols={2}>
+  <Card title="Good For" icon="check">
+    - Learning Hummingbot
+    - Simple market making
+    - Price monitoring
+    - Basic arbitrage
+    - Quick prototypes
+  </Card>
+  <Card title="Consider V2 Framework For" icon="layer-group">
+    - Complex multi-strategy systems
+    - Reusable components
+    - Advanced risk management
+    - Backtesting requirements
+    - Multiple market conditions
+  </Card>
+</CardGroup>
+
+## Basic Structure
+
+Every script consists of two main parts:
+
+### 1. Configuration Class
+
+Defines parameters using Pydantic:
+
+```python
+from hummingbot.strategy.strategy_v2_base import StrategyV2ConfigBase
+from pydantic import Field
+from decimal import Decimal
+import os
+
+class MyScriptConfig(StrategyV2ConfigBase):
+    script_file_name: str = os.path.basename(__file__)
+    exchange: str = Field("binance_paper_trade")
+    trading_pair: str = Field("ETH-USDT")
+    order_amount: Decimal = Field(Decimal("0.01"))
+    
+    def update_markets(self, markets: MarketDict) -> MarketDict:
+        markets[self.exchange] = markets.get(self.exchange, set()) | {self.trading_pair}
+        return markets
+```
+
+### 2. Strategy Class
+
+Implements trading logic:
+
+```python
+from hummingbot.strategy.strategy_v2_base import StrategyV2Base
+
+class MyScript(StrategyV2Base):
+    def __init__(self, connectors, config: MyScriptConfig):
+        super().__init__(connectors, config)
+        self.config = config
+    
+    def on_tick(self):
+        # This runs every second
+        # Implement your trading logic here
+        pass
+```
+
+## Real Examples
+
+### Example 1: Log Price Script
+
+A minimal script that logs market prices.
+
+**Source**: `scripts/log_price_example.py:1`
+
+```python
+import os
+from pydantic import Field
+from hummingbot.core.data_type.common import MarketDict
+from hummingbot.strategy.strategy_v2_base import StrategyV2Base, StrategyV2ConfigBase
+
+class LogPricesExampleConfig(StrategyV2ConfigBase):
+    script_file_name: str = os.path.basename(__file__)
+    exchanges: list = Field(default=["binance_paper_trade", "kucoin_paper_trade"])
+    trading_pair: str = Field(default="ETH-USDT")
+
+    def update_markets(self, markets: MarketDict) -> MarketDict:
+        for exchange in self.exchanges:
+            markets[exchange] = markets.get(exchange, set()) | {self.trading_pair}
+        return markets
+
+class LogPricesExample(StrategyV2Base):
+    def __init__(self, connectors, config: LogPricesExampleConfig):
+        super().__init__(connectors, config)
+        self.config = config
+
+    def on_tick(self):
+        for connector_name, connector in self.connectors.items():
+            self.logger().info(f"Connector: {connector_name}")
+            self.logger().info(f"Best ask: {connector.get_price(self.config.trading_pair, True)}")
+            self.logger().info(f"Best bid: {connector.get_price(self.config.trading_pair, False)}")
+            self.logger().info(f"Mid price: {connector.get_mid_price(self.config.trading_pair)}")
+```
+
+<Accordion title="What this does">
+- Connects to multiple exchanges
+- Every second, logs the bid, ask, and mid price
+- No orders placed - just monitoring
+</Accordion>
+
+### Example 2: Simple PMM (Pure Market Maker)
+
+A basic market-making strategy that places buy and sell orders around mid price.
+
+**Source**: `scripts/simple_pmm.py:1`
+
+```python
+import logging
+import os
+from decimal import Decimal
+from typing import Dict, List
+from pydantic import Field
+
+from hummingbot.connector.connector_base import ConnectorBase
+from hummingbot.core.data_type.common import MarketDict, OrderType, PriceType, TradeType
+from hummingbot.core.data_type.order_candidate import OrderCandidate
+from hummingbot.core.event.events import OrderFilledEvent
+from hummingbot.strategy.strategy_v2_base import StrategyV2Base, StrategyV2ConfigBase
+
+class SimplePMMConfig(StrategyV2ConfigBase):
+    script_file_name: str = os.path.basename(__file__)
+    exchange: str = Field("binance_paper_trade")
+    trading_pair: str = Field("ETH-USDT")
+    order_amount: Decimal = Field(Decimal("0.01"))
+    bid_spread: Decimal = Field(Decimal("0.001"))  # 0.1%
+    ask_spread: Decimal = Field(Decimal("0.001"))  # 0.1%
+    order_refresh_time: int = Field(15)  # seconds
+    price_type: str = Field("mid")  # or "last"
+
+    def update_markets(self, markets: MarketDict) -> MarketDict:
+        markets[self.exchange] = markets.get(self.exchange, set()) | {self.trading_pair}
+        return markets
+
+class SimplePMM(StrategyV2Base):
+    create_timestamp = 0
+    
+    def __init__(self, connectors: Dict[str, ConnectorBase], config: SimplePMMConfig):
+        super().__init__(connectors, config)
+        self.config = config
+        self.price_source = PriceType.LastTrade if config.price_type == "last" else PriceType.MidPrice
+
+    def on_tick(self):
+        if self.create_timestamp <= self.current_timestamp:
+            self.cancel_all_orders()
+            proposal = self.create_proposal()
+            proposal_adjusted = self.adjust_proposal_to_budget(proposal)
+            self.place_orders(proposal_adjusted)
+            self.create_timestamp = self.config.order_refresh_time + self.current_timestamp
+
+    def create_proposal(self) -> List[OrderCandidate]:
+        ref_price = self.connectors[self.config.exchange].get_price_by_type(
+            self.config.trading_pair, self.price_source
+        )
+        buy_price = ref_price * Decimal(1 - self.config.bid_spread)
+        sell_price = ref_price * Decimal(1 + self.config.ask_spread)
+
+        buy_order = OrderCandidate(
+            trading_pair=self.config.trading_pair,
+            is_maker=True,
+            order_type=OrderType.LIMIT,
+            order_side=TradeType.BUY,
+            amount=self.config.order_amount,
+            price=buy_price
+        )
+
+        sell_order = OrderCandidate(
+            trading_pair=self.config.trading_pair,
+            is_maker=True,
+            order_type=OrderType.LIMIT,
+            order_side=TradeType.SELL,
+            amount=self.config.order_amount,
+            price=sell_price
+        )
+
+        return [buy_order, sell_order]
+
+    def adjust_proposal_to_budget(self, proposal: List[OrderCandidate]) -> List[OrderCandidate]:
+        return self.connectors[self.config.exchange].budget_checker.adjust_candidates(
+            proposal, all_or_none=True
+        )
+
+    def place_orders(self, proposal: List[OrderCandidate]) -> None:
+        for order in proposal:
+            self.place_order(connector_name=self.config.exchange, order=order)
+
+    def place_order(self, connector_name: str, order: OrderCandidate):
+        if order.order_side == TradeType.SELL:
+            self.sell(
+                connector_name=connector_name,
+                trading_pair=order.trading_pair,
+                amount=order.amount,
+                order_type=order.order_type,
+                price=order.price
+            )
+        elif order.order_side == TradeType.BUY:
+            self.buy(
+                connector_name=connector_name,
+                trading_pair=order.trading_pair,
+                amount=order.amount,
+                order_type=order.order_type,
+                price=order.price
+            )
+
+    def cancel_all_orders(self):
+        for order in self.get_active_orders(connector_name=self.config.exchange):
+            self.cancel(self.config.exchange, order.trading_pair, order.client_order_id)
+
+    def did_fill_order(self, event: OrderFilledEvent):
+        msg = f"{event.trade_type.name} {round(event.amount, 2)} {event.trading_pair} at {round(event.price, 2)}"
+        self.log_with_clock(logging.INFO, msg)
+        self.notify_hb_app_with_timestamp(msg)
+```
+
+<Accordion title="How it works">
+1. Every 15 seconds (configurable):
+   - Cancels existing orders
+   - Calculates new bid/ask prices based on mid price ± spread
+   - Places new buy and sell limit orders
+2. When orders fill, logs the trade
+3. Budget checker ensures you have sufficient balance
+</Accordion>
+
+### Example 3: Candles Data Script
+
+Demonstrates working with candlestick data and technical indicators.
+
+**Source**: `scripts/candles_example.py:1`
+
+```python
+import os
+from typing import Dict, List
+import pandas as pd
+import pandas_ta as ta
+from pydantic import Field, field_validator
+
+from hummingbot.connector.connector_base import ConnectorBase
+from hummingbot.core.data_type.common import MarketDict
+from hummingbot.data_feed.candles_feed.data_types import CandlesConfig
+from hummingbot.strategy.strategy_v2_base import StrategyV2Base, StrategyV2ConfigBase
+
+class CandlesExampleConfig(StrategyV2ConfigBase):
+    script_file_name: str = os.path.basename(__file__)
+    controllers_config: List[str] = Field(default=[], exclude=True)
+    
+    candles_config: List[CandlesConfig] = Field(
+        default_factory=lambda: [
+            CandlesConfig(connector="binance", trading_pair="ETH-USDT", interval="1m", max_records=1000),
+            CandlesConfig(connector="binance", trading_pair="ETH-USDT", interval="1h", max_records=1000),
+        ],
+    )
+
+    @field_validator('candles_config', mode="before")
+    @classmethod
+    def parse_candles_config(cls, v) -> List[CandlesConfig]:
+        if isinstance(v, str):
+            # Parse string format: "connector.pair.interval.max_records"
+            configs = []
+            for entry in v.split(':'):
+                parts = entry.split('.')
+                connector, trading_pair, interval, max_records = parts
+                configs.append(CandlesConfig(
+                    connector=connector,
+                    trading_pair=trading_pair,
+                    interval=interval,
+                    max_records=int(max_records)
+                ))
+            return configs
+        return v
+
+    def update_markets(self, markets: MarketDict) -> MarketDict:
+        # No trading markets needed - just candles data
+        return markets
+
+class CandlesExample(StrategyV2Base):
+    def __init__(self, connectors: Dict[str, ConnectorBase], config: CandlesExampleConfig):
+        super().__init__(connectors, config)
+        self.config = config
+
+    def on_tick(self):
+        # Access candles data
+        for candles_config in self.config.candles_config:
+            candles = self.market_data_provider.get_candles_df(
+                connector_name=candles_config.connector,
+                trading_pair=candles_config.trading_pair,
+                interval=candles_config.interval,
+                max_records=100
+            )
+            
+            if len(candles) > 0:
+                # Calculate indicators using pandas_ta
+                candles.ta.sma(length=20, append=True)
+                candles.ta.rsi(length=14, append=True)
+                
+                # Log latest values
+                latest = candles.iloc[-1]
+                self.logger().info(
+                    f"{candles_config.trading_pair} {candles_config.interval}: "
+                    f"Close={latest['close']:.2f}, "
+                    f"SMA20={latest.get('SMA_20', 0):.2f}, "
+                    f"RSI={latest.get('RSI_14', 0):.2f}"
+                )
+```
+
+<Accordion title="Key features">
+- No trading - pure data analysis
+- Multiple timeframes (1m, 1h)
+- Technical indicators via pandas_ta
+- Demonstrates candles configuration
+</Accordion>
+
+## Key Components
+
+### Accessing Market Data
+
+<CodeGroup>
+```python Prices
+# Get mid price
+mid_price = self.connectors["binance"].get_mid_price("ETH-USDT")
+
+# Get bid/ask
+best_bid = self.connectors["binance"].get_price("ETH-USDT", False)
+best_ask = self.connectors["binance"].get_price("ETH-USDT", True)
+
+# Get price by type
+from hummingbot.core.data_type.common import PriceType
+last_price = connector.get_price_by_type("ETH-USDT", PriceType.LastTrade)
+```
+
+```python Balance
+# Get balance
+eth_balance = self.connectors["binance"].get_balance("ETH")
+usdt_balance = self.connectors["binance"].get_balance("USDT")
+
+# Get available balance (not locked in orders)
+available = self.connectors["binance"].get_available_balance("USDT")
+```
+
+```python Order Book
+# Get order book
+order_book = self.connectors["binance"].get_order_book("ETH-USDT")
+
+# Access bids and asks
+top_bid = order_book.bid_entries()[0]
+top_ask = order_book.ask_entries()[0]
+```
+
+```python Candles
+# Get candles DataFrame
+df = self.market_data_provider.get_candles_df(
+    connector_name="binance",
+    trading_pair="ETH-USDT",
+    interval="1m",
+    max_records=100
+)
+
+# Access OHLCV
+closes = df["close"]
+volumes = df["volume"]
+```
+</CodeGroup>
+
+### Placing Orders
+
+<CodeGroup>
+```python Market Orders
+# Buy market order
+self.buy(
+    connector_name="binance",
+    trading_pair="ETH-USDT",
+    amount=Decimal("0.1"),
+    order_type=OrderType.MARKET
+)
+
+# Sell market order
+self.sell(
+    connector_name="binance",
+    trading_pair="ETH-USDT",
+    amount=Decimal("0.1"),
+    order_type=OrderType.MARKET
+)
+```
+
+```python Limit Orders
+from hummingbot.core.data_type.common import OrderType
+from decimal import Decimal
+
+# Buy limit order
+self.buy(
+    connector_name="binance",
+    trading_pair="ETH-USDT",
+    amount=Decimal("0.1"),
+    order_type=OrderType.LIMIT,
+    price=Decimal("2000")
+)
+
+# Sell limit order
+self.sell(
+    connector_name="binance",
+    trading_pair="ETH-USDT",
+    amount=Decimal("0.1"),
+    order_type=OrderType.LIMIT,
+    price=Decimal("2100")
+)
+```
+
+```python Order Candidates
+from hummingbot.core.data_type.order_candidate import OrderCandidate
+
+# Create order candidate
+order = OrderCandidate(
+    trading_pair="ETH-USDT",
+    is_maker=True,
+    order_type=OrderType.LIMIT,
+    order_side=TradeType.BUY,
+    amount=Decimal("0.1"),
+    price=Decimal("2000")
+)
+
+# Adjust for budget
+adjusted = connector.budget_checker.adjust_candidates([order])
+
+# Place if valid
+if adjusted:
+    self.buy(...)
+```
+</CodeGroup>
+
+### Managing Orders
+
+```python
+# Get active orders
+active_orders = self.get_active_orders(connector_name="binance")
+
+# Cancel specific order
+for order in active_orders:
+    if order.price < some_threshold:
+        self.cancel(
+            connector_name="binance",
+            trading_pair=order.trading_pair,
+            order_id=order.client_order_id
+        )
+
+# Cancel all orders for a pair
+for order in active_orders:
+    if order.trading_pair == "ETH-USDT":
+        self.cancel("binance", order.trading_pair, order.client_order_id)
+```
+
+### Event Handlers
+
+Respond to order events:
+
+```python
+from hummingbot.core.event.events import OrderFilledEvent, OrderCancelledEvent
+
+class MyScript(StrategyV2Base):
+    def did_fill_order(self, event: OrderFilledEvent):
+        """Called when an order fills"""
+        self.logger().info(
+            f"Filled {event.trade_type.name}: "
+            f"{event.amount} {event.trading_pair} @ {event.price}"
+        )
+    
+    def did_cancel_order(self, event: OrderCancelledEvent):
+        """Called when an order is cancelled"""
+        self.logger().info(f"Order cancelled: {event.order_id}")
+    
+    def did_complete_buy_order(self, event: BuyOrderCompletedEvent):
+        """Called when a buy order fully fills"""
+        self.logger().info(f"Buy order completed: {event.order_id}")
+    
+    def did_complete_sell_order(self, event: SellOrderCompletedEvent):
+        """Called when a sell order fully fills"""
+        self.logger().info(f"Sell order completed: {event.order_id}")
+```
+
+## Configuration Best Practices
+
+### Use Field Validation
+
+```python
+from pydantic import field_validator, Field
+from decimal import Decimal
+
+class MyConfig(StrategyV2ConfigBase):
+    spread: Decimal = Field(default=Decimal("0.01"))
+    
+    @field_validator('spread')
+    @classmethod
+    def validate_spread(cls, v):
+        if v <= 0:
+            raise ValueError("Spread must be positive")
+        if v > Decimal("0.1"):
+            raise ValueError("Spread too large (max 10%)")
+        return v
+```
+
+### Add User Prompts
+
+```python
+class MyConfig(StrategyV2ConfigBase):
+    order_amount: Decimal = Field(
+        default=Decimal("0.01"),
+        json_schema_extra={
+            "prompt": "Enter the order amount in base asset: ",
+            "prompt_on_new": True
+        }
+    )
+```
+
+### Support Multiple Markets
+
+```python
+class MyConfig(StrategyV2ConfigBase):
+    exchanges: List[str] = Field(default=["binance", "kucoin"])
+    trading_pairs: List[str] = Field(default=["ETH-USDT", "BTC-USDT"])
+    
+    def update_markets(self, markets: MarketDict) -> MarketDict:
+        for exchange in self.exchanges:
+            for pair in self.trading_pairs:
+                markets[exchange] = markets.get(exchange, set()) | {pair}
+        return markets
+```
+
+## Common Patterns
+
+### Time-Based Actions
+
+```python
+class MyScript(StrategyV2Base):
+    def __init__(self, connectors, config):
+        super().__init__(connectors, config)
+        self.next_action_timestamp = 0
+    
+    def on_tick(self):
+        if self.current_timestamp >= self.next_action_timestamp:
+            # Perform action
+            self.do_something()
+            # Schedule next action in 60 seconds
+            self.next_action_timestamp = self.current_timestamp + 60
+```
+
+### State Management
+
+```python
+from enum import Enum
+
+class State(Enum):
+    IDLE = 1
+    BUYING = 2
+    SELLING = 3
+
+class MyScript(StrategyV2Base):
+    def __init__(self, connectors, config):
+        super().__init__(connectors, config)
+        self.state = State.IDLE
+    
+    def on_tick(self):
+        if self.state == State.IDLE:
+            if self.should_buy():
+                self.buy(...)
+                self.state = State.BUYING
+        elif self.state == State.BUYING:
+            if self.position_filled():
+                self.state = State.SELLING
+```
+
+### Technical Indicators
+
+```python
+import pandas_ta as ta
+
+class MyScript(StrategyV2Base):
+    def calculate_signals(self):
+        df = self.market_data_provider.get_candles_df(
+            connector_name="binance",
+            trading_pair="ETH-USDT",
+            interval="1h",
+            max_records=200
+        )
+        
+        # Add indicators
+        df.ta.sma(length=20, append=True)
+        df.ta.sma(length=50, append=True)
+        df.ta.rsi(length=14, append=True)
+        
+        # Get latest values
+        latest = df.iloc[-1]
+        sma_20 = latest['SMA_20']
+        sma_50 = latest['SMA_50']
+        rsi = latest['RSI_14']
+        
+        # Generate signal
+        if sma_20 > sma_50 and rsi < 30:
+            return "BUY"
+        elif sma_20 < sma_50 and rsi > 70:
+            return "SELL"
+        return "HOLD"
+```
+
+## Debugging Tips
+
+### Logging
+
+```python
+# Different log levels
+self.logger().debug("Detailed debug info")
+self.logger().info("General information")
+self.logger().warning("Warning message")
+self.logger().error("Error occurred", exc_info=True)
+
+# Log with timestamp
+self.log_with_clock(logging.INFO, "Message with timestamp")
+
+# Notify UI
+self.notify_hb_app_with_timestamp("User notification")
+```
+
+### Status Display
+
+Customize the status display:
+
+```python
+class MyScript(StrategyV2Base):
+    def format_status(self) -> str:
+        """Custom status display"""
+        lines = []
+        lines.append(f"\n  Strategy: {self.__class__.__name__}")
+        lines.append(f"  Exchange: {self.config.exchange}")
+        lines.append(f"  Pair: {self.config.trading_pair}")
+        
+        # Add active orders
+        active = self.get_active_orders(self.config.exchange)
+        lines.append(f"  Active Orders: {len(active)}")
+        
+        return "\n".join(lines)
+```
+
+## Deployment
+
+<Steps>
+  <Step title="Place Script File">
+    Save your script in `scripts/` directory:
+    ```bash
+    ~/hummingbot/scripts/my_strategy.py
+    ```
+  </Step>
+  
+  <Step title="Start Hummingbot">
+    ```bash
+    ./start
+    ```
+  </Step>
+  
+  <Step title="Create Strategy">
+    ```bash
+    create --script my_strategy.py
+    ```
+  </Step>
+  
+  <Step title="Configure Parameters">
+    Answer prompts for configuration values
+  </Step>
+  
+  <Step title="Start Trading">
+    ```bash
+    start
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Strategy V2 Framework" icon="layer-group" href="/development/strategy-v2">
+    Graduate to the full V2 framework for complex strategies
+  </Card>
+  <Card title="Controllers" icon="gamepad" href="/development/controllers">
+    Learn about modular strategy components
+  </Card>
+  <Card title="Backtesting" icon="chart-line" href="/development/backtesting">
+    Test strategies with historical data
+  </Card>
+  <Card title="Executors" icon="play" href="/development/executors">
+    Advanced order execution patterns
+  </Card>
+</CardGroup>

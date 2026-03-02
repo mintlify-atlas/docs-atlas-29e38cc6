@@ -1,0 +1,143 @@
+---
+title: Introduction to Hummingbot
+description: Open-source framework for building and deploying automated trading strategies across 140+ cryptocurrency exchanges
+---
+
+Hummingbot is an open-source framework that helps you design and deploy automated trading strategies, or **bots**, that can run on many centralized or decentralized exchanges. Over the past year, Hummingbot users have generated over $34 billion in trading volume across 140+ unique trading venues.
+
+## What is Hummingbot?
+
+The Hummingbot codebase is free and publicly available under the Apache 2.0 open-source license. The mission is to **democratize high-frequency trading** by creating a global community of algorithmic traders and developers that share knowledge and contribute to the codebase.
+
+Hummingbot enables you to:
+
+- Build sophisticated trading strategies using Python
+- Deploy bots across multiple exchanges simultaneously
+- Run strategies on both centralized (CEX) and decentralized (DEX) exchanges
+- Backtest strategies using historical data
+- Leverage modular components like controllers and executors for advanced strategy design
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multi-Exchange Support" icon="building-columns">
+    Connect to 140+ exchanges including Binance, Coinbase, dYdX, Hyperliquid, and DEXs via Gateway middleware
+  </Card>
+  
+  <Card title="Strategy Framework V2" icon="diagram-project">
+    Advanced architecture with Controllers, Executors, and orchestration for building complex trading systems
+  </Card>
+  
+  <Card title="Market Making & Arbitrage" icon="chart-line">
+    Pre-built strategies for pure market making, cross-exchange arbitrage, liquidity mining, and more
+  </Card>
+  
+  <Card title="Gateway DEX Middleware" icon="bridge">
+    Standardized connectors for AMM/CLMM DEXs across Ethereum, Solana, Avalanche, and other chains
+  </Card>
+  
+  <Card title="Script Strategies" icon="code">
+    Write custom strategies in Python with full control over trading logic and parameters
+  </Card>
+  
+  <Card title="Backtesting & Analytics" icon="flask">
+    Test strategies with historical data and analyze performance with Quants Lab notebooks
+  </Card>
+</CardGroup>
+
+## Exchange Connector Types
+
+Hummingbot supports three main categories of exchange connectors:
+
+<Accordion title="CLOB CEX - Centralized Exchanges">
+  Centralized exchanges with central limit order books that take custody of your funds. Connect via API keys.
+  
+  **Spot Markets**: Binance, Coinbase, OKX, KuCoin, Gate.io, Kraken, and more
+  
+  **Perpetual Markets**: Binance Perpetual, Bybit Perpetual, OKX Perpetual, and more
+  
+  <Tip>Many exchanges offer fee discounts through Hummingbot's referral partnerships - see the [README](https://github.com/hummingbot/hummingbot#exchange-sponsors) for details</Tip>
+</Accordion>
+
+<Accordion title="CLOB DEX - Decentralized Order Book Exchanges">
+  Decentralized exchanges with on-chain central limit order books. Non-custodial, connect via wallet keys.
+  
+  **Examples**: dYdX, Hyperliquid, Injective Helix, Vertex, Dexalot, XRPL DEX
+  
+  These exchanges combine the benefits of DEX custody with the familiar order book trading model.
+</Accordion>
+
+<Accordion title="AMM DEX - Automated Market Makers">
+  Decentralized exchanges using AMM protocols. Non-custodial, connect via Gateway middleware.
+  
+  **Router**: DEX aggregators (Uniswap Router, 0x Protocol, Jupiter)
+  
+  **AMM**: Constant product pools (Uniswap V2, SushiSwap, PancakeSwap)
+  
+  **CLMM**: Concentrated liquidity (Uniswap V3, Raydium CLMM, Meteora)
+</Accordion>
+
+## Architecture Overview
+
+Hummingbot's modular architecture separates concerns into distinct layers:
+
+```
+hummingbot/
+├── client/              # CLI interface and user interaction
+├── connector/           # Exchange connectors (spot, perpetual, gateway)
+├── core/                # Core infrastructure (events, data types, utils)
+├── strategy/            # Built-in strategies (PMM, arbitrage, etc.)
+├── strategy_v2/         # V2 framework (controllers, executors)
+└── smart_components/    # Reusable trading components
+```
+
+<Info>
+The V2 architecture introduces **Controllers** (high-level strategy logic) and **Executors** (order execution primitives) that can be composed to build sophisticated strategies. Learn more in the [Architecture](/architecture) guide.
+</Info>
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/get-started/installation">
+    Install Hummingbot using Docker or from source
+  </Card>
+  
+  <Card title="Quickstart" icon="rocket" href="/get-started/quickstart">
+    Run your first trading bot in minutes
+  </Card>
+  
+  <Card title="Architecture" icon="sitemap" href="/get-started/architecture">
+    Understand the framework's modular design
+  </Card>
+  
+  <Card title="Strategies" icon="chess" href="/strategies">
+    Explore built-in and example strategies
+  </Card>
+</CardGroup>
+
+## Community & Support
+
+<CardGroup cols={3}>
+  <Card title="Discord" icon="discord" href="https://discord.gg/hummingbot">
+    Join 30,000+ traders and developers
+  </Card>
+  
+  <Card title="YouTube" icon="youtube" href="https://www.youtube.com/c/hummingbot">
+    Video tutorials and strategy guides
+  </Card>
+  
+  <Card title="GitHub" icon="github" href="https://github.com/hummingbot/hummingbot">
+    Contribute to the open-source codebase
+  </Card>
+</CardGroup>
+
+## Related Repositories
+
+- **[Condor](https://github.com/hummingbot/condor)**: Telegram interface for Hummingbot
+- **[Gateway](https://github.com/hummingbot/gateway)**: TypeScript middleware for DEX connectors
+- **[Quants Lab](https://github.com/hummingbot/quants-lab)**: Jupyter notebooks for research and backtesting
+- **[Hummingbot MCP](https://github.com/hummingbot/mcp)**: AI assistant integration for Claude and Gemini
+
+<Note>
+Hummingbot pledges to never use user data for trading purposes or share it with third parties. See the [data reporting policy](https://hummingbot.org/reporting/) for details.
+</Note>

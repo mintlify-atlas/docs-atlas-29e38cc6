@@ -1,0 +1,261 @@
+---
+title: Exchange Types
+description: Understanding the three main types of exchanges Hummingbot supports
+---
+
+## Overview
+
+Hummingbot connectors standardize interfaces to three fundamentally different types of exchanges, each with distinct trading mechanisms, custody models, and technical architectures.
+
+## CLOB CEX (Centralized Exchange Order Book)
+
+**Central Limit Order Book (CLOB)** on **Centralized Exchanges (CEX)** are traditional cryptocurrency exchanges with custodial wallets.
+
+### Characteristics
+
+<CardGroup cols={2}>
+  <Card title="Custody" icon="vault">
+    **Custodial** - Exchange holds your funds. You deposit assets to exchange wallets.
+  </Card>
+  
+  <Card title="Connection" icon="key">
+    **API Keys** - Connect using API key + secret (and sometimes passphrase).
+  </Card>
+  
+  <Card title="Order Matching" icon="arrows-left-right">
+    **Off-chain** - Order matching happens on exchange servers, instant execution.
+  </Card>
+  
+  <Card title="Settlement" icon="clock">
+    **Off-chain** - Trades settle in exchange internal ledger, no blockchain transaction required.
+  </Card>
+</CardGroup>
+
+### Market Types
+
+**Spot Markets:**
+Trading physical cryptocurrency assets.
+
+- Connector suffix: None (e.g., `binance`, `okx`)
+- Order types: Market, limit, limit maker
+- Examples: Binance Spot, OKX Spot, KuCoin Spot
+
+**Perpetual Markets:**
+Trading perpetual futures contracts with leverage.
+
+- Connector suffix: `_perpetual` (e.g., `binance_perpetual`, `okx_perpetual`)
+- Additional features: Funding rates, position modes (hedge/one-way), leverage
+- Order types: Market, limit, stop-loss, take-profit
+- Examples: Binance Futures, OKX Perpetuals, Bybit Perpetuals
+
+### Examples
+
+| Exchange | Spot Connector | Perpetual Connector | Type |
+|----------|---------------|---------------------|------|
+| Binance | `binance` | `binance_perpetual` | CLOB CEX |
+| OKX | `okx` | `okx_perpetual` | CLOB CEX |
+| Bybit | `bybit` | `bybit_perpetual` | CLOB CEX |
+| KuCoin | `kucoin` | `kucoin_perpetual` | CLOB CEX |
+| Gate.io | `gate_io` | `gate_io_perpetual` | CLOB CEX |
+
+Source: README.md:102-131.
+
+## CLOB DEX (Decentralized Exchange Order Book)
+
+**Central Limit Order Book (CLOB)** on **Decentralized Exchanges (DEX)** use blockchain-based or hybrid order books with non-custodial wallets.
+
+### Characteristics
+
+<CardGroup cols={2}>
+  <Card title="Custody" icon="wallet">
+    **Non-custodial** - You control your funds via private key. No deposits required.
+  </Card>
+  
+  <Card title="Connection" icon="key">
+    **Wallet Keys** - Connect using wallet private key or seed phrase.
+  </Card>
+  
+  <Card title="Order Matching" icon="cube">
+    **On-chain or Hybrid** - Orders may be matched on-chain or off-chain depending on design.
+  </Card>
+  
+  <Card title="Settlement" icon="signature">
+    **On-chain** - Trades require blockchain transactions, may have gas fees and latency.
+  </Card>
+</CardGroup>
+
+### Architecture Variants
+
+<Accordion title="Fully On-Chain Order Books">
+  All order operations (place, cancel, match) happen on-chain.
+  
+  - Higher latency (block time)
+  - Gas fees for all operations
+  - Maximum decentralization
+  - Example: XRP Ledger, early Dexalot
+</Accordion>
+
+<Accordion title="Hybrid Order Books">
+  Orders placed off-chain, settlement on-chain.
+  
+  - Fast order placement and cancellation
+  - Gas fees only on settlement
+  - Reduced blockchain load
+  - Examples: dYdX v4, Hyperliquid, Injective, Vertex
+</Accordion>
+
+### Market Types
+
+**Spot Markets:**
+Trading tokens directly on-chain.
+
+- Examples: Hyperliquid Spot, Injective Spot, Vertex Spot
+- Connector examples: `hyperliquid`, `injective_v2`, `vertex`
+
+**Perpetual Markets:**
+On-chain perpetual futures trading.
+
+- Examples: dYdX v4, Hyperliquid Perps, Injective Perps
+- Connector examples: `dydx_v4_perpetual`, `hyperliquid_perpetual`, `injective_v2_perpetual`
+
+### Examples
+
+| Exchange | Spot Connector | Perpetual Connector | Type |
+|----------|---------------|---------------------|------|
+| Hyperliquid | `hyperliquid` | `hyperliquid_perpetual` | CLOB DEX |
+| dYdX v4 | - | `dydx_v4_perpetual` | CLOB DEX |
+| Injective | `injective_v2` | `injective_v2_perpetual` | CLOB DEX |
+| Vertex | `vertex` | - | CLOB DEX |
+| Derive | `derive` | `derive_perpetual` | CLOB DEX |
+| XRP Ledger | `xrpl` | - | CLOB DEX |
+
+Source: README.md:106-132.
+
+## AMM DEX (Automated Market Maker)
+
+**Automated Market Maker (AMM)** decentralized exchanges use liquidity pools and algorithmic pricing instead of order books.
+
+### Characteristics
+
+<CardGroup cols={2}>
+  <Card title="Custody" icon="wallet">
+    **Non-custodial** - Assets in smart contract pools or your wallet.
+  </Card>
+  
+  <Card title="Connection" icon="server">
+    **Gateway Middleware** - Hummingbot connects via Gateway to blockchain nodes.
+  </Card>
+  
+  <Card title="Pricing" icon="function">
+    **Algorithmic** - Prices determined by pool ratios (e.g., constant product x*y=k).
+  </Card>
+  
+  <Card title="Settlement" icon="signature">
+    **On-chain** - All swaps are blockchain transactions with gas fees.
+  </Card>
+</CardGroup>
+
+### AMM Sub-Types
+
+<AccordionGroup>
+  <Accordion title="Router DEXs" icon="route">
+    DEX aggregators that route trades across multiple pools for best prices.
+    
+    - **Examples**: 0x Protocol, Jupiter
+    - **Features**: Multi-hop routing, price optimization
+    - **Connectors**: `0x`, `jupiter`
+  </Accordion>
+  
+  <Accordion title="AMM (Constant Product)" icon="wave-sine">
+    Traditional AMMs using constant product formula (x*y=k).
+    
+    - **Examples**: Uniswap V2, PancakeSwap, SushiSwap
+    - **Features**: Simple liquidity pools, full-range liquidity
+    - **Connectors**: `uniswap`, `pancakeswap`, `sushiswap`, `traderjoe`, `quickswap`, `balancer`, `curve`
+  </Accordion>
+  
+  <Accordion title="CLMM (Concentrated Liquidity)" icon="chart-area">
+    Concentrated Liquidity Market Makers with custom price ranges.
+    
+    - **Examples**: Uniswap V3, Raydium CLMM, Meteora
+    - **Features**: Capital efficiency, custom liquidity ranges, higher fees
+    - **Connectors**: `uniswap` (V3), `raydium` (CLMM mode), `meteora`
+  </Accordion>
+</AccordionGroup>
+
+### Gateway Middleware
+
+AMM connectors require Gateway, a separate TypeScript service that interfaces with blockchain nodes:
+
+```bash
+# Install Hummingbot with Gateway
+make setup
+# Answer 'y' when prompted:
+Include Gateway? [y/N]
+```
+
+Gateway provides:
+- Blockchain node connectivity (Ethereum, BSC, Polygon, Solana, etc.)
+- Smart contract interaction
+- Wallet management and transaction signing
+- Standardized APIs for AMM interactions
+
+Source: README.md:52-78.
+
+### Examples
+
+| DEX | Type | Sub-Type | Connector |
+|-----|------|----------|----------|
+| Uniswap | AMM DEX | Router, AMM, CLMM | `uniswap` |
+| PancakeSwap | AMM DEX | AMM | `pancakeswap` |
+| Raydium | AMM DEX | AMM, CLMM | `raydium` |
+| Curve | AMM DEX | AMM | `curve` |
+| 0x Protocol | AMM DEX | Router | `0x` |
+| Jupiter | AMM DEX | Router | `jupiter` |
+| Meteora | AMM DEX | CLMM | `meteora` |
+| SushiSwap | AMM DEX | AMM | `sushiswap` |
+| Balancer | AMM DEX | AMM | `balancer` |
+
+Source: README.md:139-162.
+
+## Comparison Matrix
+
+| Feature | CLOB CEX | CLOB DEX | AMM DEX |
+|---------|----------|----------|----------|
+| **Custody** | Custodial | Non-custodial | Non-custodial |
+| **Auth Method** | API Keys | Wallet Keys | Wallet Keys (via Gateway) |
+| **Order Placement** | Instant | Fast (hybrid) or slow (on-chain) | N/A (direct swaps) |
+| **Gas Fees** | No | Yes (on settlement) | Yes (every swap) |
+| **Latency** | Low (ms) | Medium (hybrid) to High (on-chain) | High (block time) |
+| **Order Types** | Market, Limit, Stop | Market, Limit | Swap only |
+| **Slippage** | Low (order book) | Low (order book) | Can be high (pool depth) |
+| **MEV Risk** | No | Yes | Yes |
+| **Liquidity** | Deep | Varies | Pool-dependent |
+
+## Choosing an Exchange Type
+
+<Tip>
+**Use CLOB CEX when:**
+- You need high-frequency trading with low latency
+- You want deep liquidity and tight spreads
+- You're comfortable with custodial risk
+- You need advanced order types (stop-loss, trailing stop, etc.)
+
+**Use CLOB DEX when:**
+- You want non-custodial trading with order book efficiency
+- You're trading on-chain derivatives or exotic pairs
+- You need transparency and censorship resistance
+- You can tolerate gas fees and some latency
+
+**Use AMM DEX when:**
+- You're trading long-tail assets not on centralized exchanges
+- You want to provide liquidity and earn fees
+- You need permissionless, unstoppable trading
+- You're comfortable with impermanent loss and gas costs
+</Tip>
+
+## Related Concepts
+
+- [Connectors](/concepts/connectors) - Technical implementation of exchange interfaces
+- [Strategies](/concepts/strategies) - Trading strategies that work across exchange types
+- [Order Types](/concepts/order-types) - Different order execution methods
